@@ -2,18 +2,24 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import type { Session } from 'next-auth';
 import { getAppUserIdFromSession } from './appUser';
 
-// Environment variables - add these to your .env.local
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-// Validate environment variables
-if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error('⚠️  Supabase credentials missing. Add to .env.local:\n  NEXT_PUBLIC_SUPABASE_URL=your-project-url\n  NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key');
+// Validates that a required environment variable is set and returns it as a non-nullable string.
+function requireEnv(name: string): string {
+  const value = process.env[name];
+  if (!value) {
+    throw new Error(
+      `Missing required environment variable: ${name}. Add it to .env.local.`
+    );
+  }
+  return value;
 }
 
+// Environment variables - add these to your .env.local
+const supabaseUrl: string = requireEnv('NEXT_PUBLIC_SUPABASE_URL');
+const supabaseAnonKey: string = requireEnv('NEXT_PUBLIC_SUPABASE_ANON_KEY');
+const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
 // Client for browser (uses anon key - respects RLS)
-export const supabase: SupabaseClient = createClient(supabaseUrl as string, supabaseAnonKey as string, {
+export const supabase: SupabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     persistSession: true,
     autoRefreshToken: true,
@@ -32,7 +38,7 @@ export function getSupabaseAdmin(): SupabaseClient {
   }
 
   if (!_supabaseAdmin) {
-    _supabaseAdmin = createClient(supabaseUrl as string, supabaseServiceRoleKey as string, {
+    _supabaseAdmin = createClient(supabaseUrl, supabaseServiceRoleKey, {
       auth: {
         persistSession: false,
         autoRefreshToken: false,
@@ -49,7 +55,7 @@ export function supabaseAdmin(): SupabaseClient {
 }
 // Helper to create a Supabase client with app user context for RLS
 export function getSupabaseWithUser(userId: string): SupabaseClient {
-  return createClient(supabaseUrl as string, supabaseAnonKey as string, {
+  return createClient(supabaseUrl, supabaseAnonKey, {
     auth: {
       persistSession: false,
       autoRefreshToken: false,
