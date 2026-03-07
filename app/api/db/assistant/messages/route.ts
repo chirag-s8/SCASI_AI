@@ -4,6 +4,9 @@ import { authOptions } from "../../../auth/[...nextauth]/route";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { getAppUserIdFromSession } from "@/lib/appUser";
 
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const ALLOWED_ROLES = new Set(["user", "assistant", "system"]);
+
 export async function GET(req: Request) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -12,6 +15,7 @@ export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const sessionId = searchParams.get("session_id");
   if (!sessionId) return NextResponse.json({ error: "session_id required" }, { status: 400 });
+  if (!UUID_REGEX.test(sessionId)) return NextResponse.json({ error: "session_id must be a valid UUID" }, { status: 400 });
 
   const supabaseAdmin = getSupabaseAdmin();
 
@@ -46,6 +50,14 @@ export async function POST(req: Request) {
 
   if (!session_id || !role || !content) {
     return NextResponse.json({ error: "session_id, role, content required" }, { status: 400 });
+  }
+
+  if (!UUID_REGEX.test(session_id)) {
+    return NextResponse.json({ error: "session_id must be a valid UUID" }, { status: 400 });
+  }
+
+  if (!ALLOWED_ROLES.has(role)) {
+    return NextResponse.json({ error: "role must be one of: user, assistant, system" }, { status: 400 });
   }
 
   const supabaseAdmin = getSupabaseAdmin();
