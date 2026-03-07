@@ -3,17 +3,28 @@
 -- Run this in Supabase SQL Editor (Dashboard > SQL Editor > New Query)
 -- =============================================================================
 
--- 1. Enable pgvector extension (required for embeddings)
+-- 1. Enable required extensions
 CREATE EXTENSION IF NOT EXISTS vector;
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
 -- =============================================================================
 -- 2. TABLES
 -- =============================================================================
 
+-- users: app-level users (keyed by uuidv5 from email)
+CREATE TABLE IF NOT EXISTS public.users (
+  id UUID PRIMARY KEY,
+  email TEXT UNIQUE NOT NULL,
+  name TEXT,
+  image TEXT,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+
 -- emails: stores synced Gmail/Outlook messages
 CREATE TABLE IF NOT EXISTS public.emails (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
   gmail_id TEXT,
   subject TEXT,
   "from" TEXT,
@@ -38,7 +49,7 @@ CREATE TABLE IF NOT EXISTS public.email_chunks (
 -- assistant_sessions: chat/conversation sessions
 CREATE TABLE IF NOT EXISTS public.assistant_sessions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
   title TEXT DEFAULT 'New Chat',
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now()
@@ -56,6 +67,9 @@ CREATE TABLE IF NOT EXISTS public.assistant_messages (
 -- =============================================================================
 -- 3. INDEXES
 -- =============================================================================
+
+-- users: email lookup
+CREATE INDEX IF NOT EXISTS idx_users_email ON public.users(email);
 
 -- emails: user lookup, date ordering
 CREATE INDEX IF NOT EXISTS idx_emails_user_id ON public.emails(user_id);
@@ -150,27 +164,45 @@ CREATE INDEX IF NOT EXISTS idx_email_chunks_search_vector
 -- 5. ROW LEVEL SECURITY (RLS)
 -- =============================================================================
 
+ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.emails ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.email_chunks ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.assistant_sessions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.assistant_messages ENABLE ROW LEVEL SECURITY;
 
+-- users: users can read/update their own profile
+DROP POLICY IF EXISTS "users_select_own" ON public.users;
+CREATE POLICY "users_select_own" ON public.users
+  FOR SELECT USING (id = (current_setting('app.user_id', true))::uuid);
+
+DROP POLICY IF EXISTS "users_insert_own" ON public.users;
+CREATE POLICY "users_insert_own" ON public.users
+  FOR INSERT WITH CHECK (id = (current_setting('app.user_id', true))::uuid);
+
+DROP POLICY IF EXISTS "users_update_own" ON public.users;
+CREATE POLICY "users_update_own" ON public.users
+  FOR UPDATE 
+  USING (id = (current_setting('app.user_id', true))::uuid)
+  WITH CHECK (id = (current_setting('app.user_id', true))::uuid);
+
 -- emails: users see only their own
 DROP POLICY IF EXISTS "emails_select_own" ON public.emails;
 CREATE POLICY "emails_select_own" ON public.emails
-  FOR SELECT USING (auth.uid() = user_id);
+  FOR SELECT USING ((current_setting('app.user_id', true))::uuid = user_id);
 
 DROP POLICY IF EXISTS "emails_insert_own" ON public.emails;
 CREATE POLICY "emails_insert_own" ON public.emails
-  FOR INSERT WITH CHECK (auth.uid() = user_id);
+  FOR INSERT WITH CHECK ((current_setting('app.user_id', true))::uuid = user_id);
 
 DROP POLICY IF EXISTS "emails_update_own" ON public.emails;
 CREATE POLICY "emails_update_own" ON public.emails
-  FOR UPDATE USING (auth.uid() = user_id);
+  FOR UPDATE 
+  USING ((current_setting('app.user_id', true))::uuid = user_id)
+  WITH CHECK ((current_setting('app.user_id', true))::uuid = user_id);
 
 DROP POLICY IF EXISTS "emails_delete_own" ON public.emails;
 CREATE POLICY "emails_delete_own" ON public.emails
-  FOR DELETE USING (auth.uid() = user_id);
+  FOR DELETE USING ((current_setting('app.user_id', true))::uuid = user_id);
 
 -- email_chunks: via emails (user owns email)
 DROP POLICY IF EXISTS "email_chunks_select_via_email" ON public.email_chunks;
@@ -178,7 +210,7 @@ CREATE POLICY "email_chunks_select_via_email" ON public.email_chunks
   FOR SELECT USING (
     EXISTS (
       SELECT 1 FROM public.emails e
-      WHERE e.id = email_chunks.email_id AND e.user_id = auth.uid()
+      WHERE e.id = email_chunks.email_id AND e.user_id = (current_setting('app.user_id', true))::uuid
     )
   );
 
@@ -187,16 +219,23 @@ CREATE POLICY "email_chunks_insert_via_email" ON public.email_chunks
   FOR INSERT WITH CHECK (
     EXISTS (
       SELECT 1 FROM public.emails e
-      WHERE e.id = email_chunks.email_id AND e.user_id = auth.uid()
+      WHERE e.id = email_chunks.email_id AND e.user_id = (current_setting('app.user_id', true))::uuid
     )
   );
 
 DROP POLICY IF EXISTS "email_chunks_update_via_email" ON public.email_chunks;
 CREATE POLICY "email_chunks_update_via_email" ON public.email_chunks
-  FOR UPDATE USING (
+  FOR UPDATE 
+  USING (
     EXISTS (
       SELECT 1 FROM public.emails e
-      WHERE e.id = email_chunks.email_id AND e.user_id = auth.uid()
+      WHERE e.id = email_chunks.email_id AND e.user_id = (current_setting('app.user_id', true))::uuid
+    )
+  )
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM public.emails e
+      WHERE e.id = email_chunks.email_id AND e.user_id = (current_setting('app.user_id', true))::uuid
     )
   );
 
@@ -205,26 +244,28 @@ CREATE POLICY "email_chunks_delete_via_email" ON public.email_chunks
   FOR DELETE USING (
     EXISTS (
       SELECT 1 FROM public.emails e
-      WHERE e.id = email_chunks.email_id AND e.user_id = auth.uid()
+      WHERE e.id = email_chunks.email_id AND e.user_id = (current_setting('app.user_id', true))::uuid
     )
   );
 
 -- assistant_sessions: users see only their own
 DROP POLICY IF EXISTS "assistant_sessions_select_own" ON public.assistant_sessions;
 CREATE POLICY "assistant_sessions_select_own" ON public.assistant_sessions
-  FOR SELECT USING (auth.uid() = user_id);
+  FOR SELECT USING ((current_setting('app.user_id', true))::uuid = user_id);
 
 DROP POLICY IF EXISTS "assistant_sessions_insert_own" ON public.assistant_sessions;
 CREATE POLICY "assistant_sessions_insert_own" ON public.assistant_sessions
-  FOR INSERT WITH CHECK (auth.uid() = user_id);
+  FOR INSERT WITH CHECK ((current_setting('app.user_id', true))::uuid = user_id);
 
 DROP POLICY IF EXISTS "assistant_sessions_update_own" ON public.assistant_sessions;
 CREATE POLICY "assistant_sessions_update_own" ON public.assistant_sessions
-  FOR UPDATE USING (auth.uid() = user_id);
+  FOR UPDATE 
+  USING ((current_setting('app.user_id', true))::uuid = user_id)
+  WITH CHECK ((current_setting('app.user_id', true))::uuid = user_id);
 
 DROP POLICY IF EXISTS "assistant_sessions_delete_own" ON public.assistant_sessions;
 CREATE POLICY "assistant_sessions_delete_own" ON public.assistant_sessions
-  FOR DELETE USING (auth.uid() = user_id);
+  FOR DELETE USING ((current_setting('app.user_id', true))::uuid = user_id);
 
 -- assistant_messages: via session (user owns session)
 DROP POLICY IF EXISTS "assistant_messages_select_via_session" ON public.assistant_messages;
@@ -232,7 +273,7 @@ CREATE POLICY "assistant_messages_select_via_session" ON public.assistant_messag
   FOR SELECT USING (
     EXISTS (
       SELECT 1 FROM public.assistant_sessions s
-      WHERE s.id = assistant_messages.session_id AND s.user_id = auth.uid()
+      WHERE s.id = assistant_messages.session_id AND s.user_id = (current_setting('app.user_id', true))::uuid
     )
   );
 
@@ -241,16 +282,23 @@ CREATE POLICY "assistant_messages_insert_via_session" ON public.assistant_messag
   FOR INSERT WITH CHECK (
     EXISTS (
       SELECT 1 FROM public.assistant_sessions s
-      WHERE s.id = assistant_messages.session_id AND s.user_id = auth.uid()
+      WHERE s.id = assistant_messages.session_id AND s.user_id = (current_setting('app.user_id', true))::uuid
     )
   );
 
 DROP POLICY IF EXISTS "assistant_messages_update_via_session" ON public.assistant_messages;
 CREATE POLICY "assistant_messages_update_via_session" ON public.assistant_messages
-  FOR UPDATE USING (
+  FOR UPDATE 
+  USING (
     EXISTS (
       SELECT 1 FROM public.assistant_sessions s
-      WHERE s.id = assistant_messages.session_id AND s.user_id = auth.uid()
+      WHERE s.id = assistant_messages.session_id AND s.user_id = (current_setting('app.user_id', true))::uuid
+    )
+  )
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM public.assistant_sessions s
+      WHERE s.id = assistant_messages.session_id AND s.user_id = (current_setting('app.user_id', true))::uuid
     )
   );
 
@@ -259,7 +307,7 @@ CREATE POLICY "assistant_messages_delete_via_session" ON public.assistant_messag
   FOR DELETE USING (
     EXISTS (
       SELECT 1 FROM public.assistant_sessions s
-      WHERE s.id = assistant_messages.session_id AND s.user_id = auth.uid()
+      WHERE s.id = assistant_messages.session_id AND s.user_id = (current_setting('app.user_id', true))::uuid
     )
   );
 
@@ -270,7 +318,7 @@ CREATE POLICY "assistant_messages_delete_via_session" ON public.assistant_messag
 CREATE OR REPLACE FUNCTION public.set_updated_at()
 RETURNS TRIGGER AS $$
 BEGIN
-  NEW.updated_at = now();
+  NEW.updated_at := now();
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
@@ -285,23 +333,27 @@ CREATE TRIGGER assistant_sessions_updated_at
   BEFORE UPDATE ON public.assistant_sessions
   FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
 
+DROP TRIGGER IF EXISTS users_updated_at ON public.users;
+CREATE TRIGGER users_updated_at
+  BEFORE UPDATE ON public.users
+  FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
 -- =============================================================================
 -- 7. FTS search function (optional convenience)
 -- =============================================================================
 
 CREATE OR REPLACE FUNCTION public.search_emails(
-  p_user_id UUID,
   p_query TEXT,
   p_limit INT DEFAULT 20
 )
 RETURNS SETOF public.emails AS $$
   SELECT *
   FROM public.emails
-  WHERE user_id = p_user_id
+  WHERE user_id = (current_setting('app.user_id', true))::uuid
     AND search_vector @@ plainto_tsquery('english', p_query)
   ORDER BY ts_rank(search_vector, plainto_tsquery('english', p_query)) DESC
   LIMIT p_limit;
-$$ LANGUAGE sql STABLE SECURITY DEFINER;
+$$ LANGUAGE sql STABLE SECURITY INVOKER;
 
 -- =============================================================================
 -- 8. Vector similarity search function (optional convenience)
@@ -309,7 +361,6 @@ $$ LANGUAGE sql STABLE SECURITY DEFINER;
 
 CREATE OR REPLACE FUNCTION public.search_email_chunks_by_embedding(
   p_embedding vector(768),
-  p_user_id UUID,
   p_match_threshold FLOAT DEFAULT 0.7,
   p_match_count INT DEFAULT 5
 )
@@ -326,9 +377,9 @@ RETURNS TABLE (
     1 - (ec.embedding <=> p_embedding) AS similarity
   FROM public.email_chunks ec
   JOIN public.emails e ON e.id = ec.email_id
-  WHERE e.user_id = p_user_id
+  WHERE e.user_id = (current_setting('app.user_id', true))::uuid
     AND ec.embedding IS NOT NULL
     AND 1 - (ec.embedding <=> p_embedding) > p_match_threshold
   ORDER BY ec.embedding <=> p_embedding
   LIMIT p_match_count;
-$$ LANGUAGE sql STABLE SECURITY DEFINER;
+$$ LANGUAGE sql STABLE SECURITY INVOKER;

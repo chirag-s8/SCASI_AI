@@ -1,15 +1,15 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "../../auth/[...nextauth]/route";
-import { assertSupabaseAdminConfigured, supabaseAdmin } from "@/lib/supabase";
+import { getSupabaseAdmin } from "@/lib/supabase";
 import { getAppUserIdFromSession } from "@/lib/appUser";
 
 export async function GET() {
-  assertSupabaseAdminConfigured();
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const userId = getAppUserIdFromSession(session);
+  const supabaseAdmin = getSupabaseAdmin();
 
   const { data, error } = await supabaseAdmin
     .from("emails")
@@ -23,12 +23,12 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
-  assertSupabaseAdminConfigured();
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const userId = getAppUserIdFromSession(session);
   const body = await req.json();
+  const supabaseAdmin = getSupabaseAdmin();
 
   // Accept either a single email object or { emails: [...] }
   const emails = Array.isArray(body?.emails) ? body.emails : [body];
@@ -53,6 +53,6 @@ export async function POST(req: Request) {
     .select("id,gmail_id,created_at,updated_at");
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ inserted: rows.length, records: data ?? [] });
+  return NextResponse.json({ inserted: data?.length ?? 0, records: data ?? [] });
 }
 

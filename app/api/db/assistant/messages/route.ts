@@ -1,11 +1,10 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "../../../auth/[...nextauth]/route";
-import { assertSupabaseAdminConfigured, supabaseAdmin } from "@/lib/supabase";
+import { getSupabaseAdmin } from "@/lib/supabase";
 import { getAppUserIdFromSession } from "@/lib/appUser";
 
 export async function GET(req: Request) {
-  assertSupabaseAdminConfigured();
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -13,6 +12,8 @@ export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const sessionId = searchParams.get("session_id");
   if (!sessionId) return NextResponse.json({ error: "session_id required" }, { status: 400 });
+
+  const supabaseAdmin = getSupabaseAdmin();
 
   // Ownership check (since we use service role)
   const { data: owned, error: ownedErr } = await supabaseAdmin
@@ -37,7 +38,6 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
-  assertSupabaseAdminConfigured();
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -47,6 +47,8 @@ export async function POST(req: Request) {
   if (!session_id || !role || !content) {
     return NextResponse.json({ error: "session_id, role, content required" }, { status: 400 });
   }
+
+  const supabaseAdmin = getSupabaseAdmin();
 
   // Ownership check (since we use service role)
   const { data: owned, error: ownedErr } = await supabaseAdmin

@@ -5,15 +5,20 @@ const nextConfig: NextConfig = {
     remotePatterns: [
       {
         protocol: 'https',
-        hostname: '**',
+        hostname: 'lh3.googleusercontent.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 'avatars.githubusercontent.com',
       },
     ],
   },
-  eslint: {
-    ignoreDuringBuilds: false,
+  // Performance optimizations
+  compiler: {
+    removeConsole: process.env.NODE_ENV === 'production',
   },
-  typescript: {
-    ignoreBuildErrors: false,
+  experimental: {
+    optimizePackageImports: ['lucide-react', 'react-icons'],
   },
 };
 

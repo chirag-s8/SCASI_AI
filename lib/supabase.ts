@@ -1,17 +1,19 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import type { Session } from 'next-auth';
+import { getAppUserIdFromSession } from './appUser';
 
 // Environment variables - add these to your .env.local
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 // Validate environment variables
 if (!supabaseUrl || !supabaseAnonKey) {
-  console.warn('⚠️  Supabase credentials missing. Add to .env.local:\n  NEXT_PUBLIC_SUPABASE_URL=your-project-url\n  NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key');
+  throw new Error('⚠️  Supabase credentials missing. Add to .env.local:\n  NEXT_PUBLIC_SUPABASE_URL=your-project-url\n  NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key');
 }
 
 // Client for browser (uses anon key - respects RLS)
-export const supabase: SupabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
+export const supabase: SupabaseClient = createClient(supabaseUrl as string, supabaseAnonKey as string, {
   auth: {
     persistSession: true,
     autoRefreshToken: true,
@@ -19,28 +21,99 @@ export const supabase: SupabaseClient = createClient(supabaseUrl, supabaseAnonKe
 });
 
 // Server-side client (uses service role - bypasses RLS, for admin operations)
-export const supabaseAdmin: SupabaseClient = createClient(
-  supabaseUrl,
-  supabaseServiceRoleKey ?? 'missing-service-role-key',
-  {
-  auth: {
-    persistSession: false,
-    autoRefreshToken: false,
-  },
-});
+// Lazy-loaded to avoid errors when service role key is not set
+let _supabaseAdmin: SupabaseClient | null = null;
 
-export function assertSupabaseAdminConfigured() {
+export function getSupabaseAdmin(): SupabaseClient {
   if (!supabaseServiceRoleKey) {
     throw new Error(
-      "SUPABASE_SERVICE_ROLE_KEY is not set. Add it to Scasi-AI/.env.local from Supabase Dashboard > Settings > API."
+      "SUPABASE_SERVICE_ROLE_KEY is not set. Add it to .env.local from Supabase Dashboard > Settings > API."
     );
   }
+
+  if (!_supabaseAdmin) {
+    _supabaseAdmin = createClient(supabaseUrl as string, supabaseServiceRoleKey as string, {
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+      },
+    });
+  }
+
+  return _supabaseAdmin;
+}
+
+// Backward compatibility - use getter
+export const supabaseAdmin = new Proxy({} as SupabaseClient, {
+  get(target, prop) {
+    return getSupabaseAdmin()[prop as keyof SupabaseClient];
+  }
+});
+
+// Helper to create a Supabase client with app user context for RLS
+export function getSupabaseWithUser(userId: string): SupabaseClient {
+  return createClient(supabaseUrl as string, (supabaseServiceRoleKey ?? supabaseAnonKey) as string, {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+    },
+    global: {
+      headers: {
+        'x-app-user-id': userId,
+      },
+    },
+    db: {
+      schema: 'public',
+    },
+  });
+}
+
+// Ensure user exists in public.users table (upsert)
+export async function ensureUserExists(session: Session): Promise<string> {
+  const userId = getAppUserIdFromSession(session);
+  const email = session.user?.email;
+  const name = session.user?.name;
+  const image = session.user?.image;
+
+  if (!email) throw new Error('Session missing email');
+
+  const admin = getSupabaseAdmin();
+  await admin
+    .from('users')
+    .upsert(
+      {
+        id: userId,
+        email: email.toLowerCase(),
+        name,
+        image,
+      },
+      { onConflict: 'id' }
+    );
+
+  return userId;
 }
 
 // Type helpers for database tables
 export type Database = {
   public: {
     Tables: {
+      users: {
+        Row: {
+          id: string;
+          email: string;
+          name: string | null;
+          image: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id: string;
+          email: string;
+          name?: string | null;
+          image?: string | null;
+        };
+        Update: Partial<Database['public']['Tables']['users']['Insert']>;
+      };
       emails: {
         Row: {
           id: string;

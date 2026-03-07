@@ -1,10 +1,10 @@
-# Supabase Setup for AlgoQuest / Scasi-AI
+# Supabase Setup for Scasi-AI
 
 ## 1. Create Supabase Project
 
 1. Go to [supabase.com/dashboard](https://supabase.com/dashboard)
 2. Click **New Project**
-3. Choose your organization, name the project (e.g. `algoquest`), set a database password, and pick a region
+3. Choose your organization, name the project (e.g. `scasi-ai`), set a database password, and pick a region
 4. Wait for the project to be provisioned
 
 ## 2. Run the SQL Migration
@@ -48,24 +48,37 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 ```
 
+## 5. Test Connection
+
+Start your dev server and visit: `http://localhost:3000/api/test-supabase`
+
+This will verify your Supabase credentials and connection.
+
 ## Schema Summary
 
 | Table | Purpose |
 |-------|---------|
+| `users` | App users (keyed by uuidv5 from email) |
 | `emails` | Synced Gmail/Outlook messages with FTS |
 | `email_chunks` | Chunked content + embeddings for vector search |
 | `assistant_sessions` | Chat/conversation sessions |
 | `assistant_messages` | Messages within each session |
 
 **Features:**
-- **pgvector** – vector(1536) for OpenAI embeddings
+- **pgvector** – vector(768) for embeddings
 - **HNSW index** – fast similarity search on `email_chunks.embedding`
 - **FTS triggers** – auto-update `search_vector` on emails (subject, from, snippet, body)
-- **RLS** – users only access their own data
+- **RLS** – users only access their own data via `current_setting('app.user_id')`
 
 ## Auth Note
 
-The schema uses `auth.users(id)` for `user_id`. If you use **Supabase Auth**, RLS works automatically. If you use **NextAuth** (Google/Azure), you’ll need to either:
+The schema uses a `public.users` table keyed by uuidv5(email) to work with **NextAuth** (Google/Azure OAuth). The `ensureUserExists()` helper in `lib/supabase.ts` automatically creates/updates user records when they sign in.
 
-- Sync users to Supabase Auth, or
-- Use the service role key for server-side queries and enforce user_id in your app logic
+## Important: Have you run the migration?
+
+If you haven't run the SQL migration yet:
+1. Go to your Supabase Dashboard → SQL Editor
+2. Copy all content from `supabase/migrations/001_initial_schema.sql`
+3. Paste and run it
+
+Without running the migration, the tables won't exist and connections will fail.
