@@ -538,6 +538,24 @@ export default function Home() {
       `/api/gmail${nextPageToken ? `?pageToken=${nextPageToken}` : ""}`
     );
     const data = await res.json();
+    // Best-effort persistence to Supabase (keeps existing UI flow intact)
+    if (data?.emails?.length) {
+      console.log("Syncing emails to Supabase...");
+      fetch("/api/db/emails", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ emails: data.emails }),
+      })
+        .then(async (res) => {
+          const result = await res.json();
+          if (result.error) {
+            console.error("Supabase API error syncing emails:", result.error);
+          } else {
+            console.log(`Successfully synced ${result.inserted || 0} emails to Supabase.`);
+          }
+        })
+        .catch(err => console.error('Failed to persist emails:', err));
+    }
     setEmails((prev) => {
       const combined = [...prev, ...(data.emails || [])];
       const unique = Array.from(
