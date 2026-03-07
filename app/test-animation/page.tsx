@@ -1,6 +1,6 @@
 "use client";
 
-import { MailMindLoginAnimation } from "@/components/MailMindLoginAnimation";
+import { MailMindLoginAnimation } from "../../components/MailMindLoginAnimation";
 import { useRouter } from "next/navigation";
 
 export default function TestAnimationPage() {

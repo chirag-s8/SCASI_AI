@@ -362,7 +362,7 @@ grid-template-columns: 40% 60%;
                     <header className="mm-topbar">
                         <div className="mm-t-brand">
                             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--mm-accent2)" strokeWidth="1.6"><rect x="2" y="4" width="20" height="16" rx="3" /><path d="m2 7 10 7 10-7" /></svg>
-                            <span className="mm-brand-name">MailMind<span className="mm-brand-dot"></span></span>
+                            <span className="mm-brand-name">Scasi<span className="mm-brand-dot"></span></span>
                         </div>
                         <div className="mm-t-center">
                             <div className="mm-search-wrap" id="mm-searchWrap">

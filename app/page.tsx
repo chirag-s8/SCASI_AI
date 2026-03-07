@@ -170,7 +170,8 @@ function MailLoadingScreen({ onDone }: { onDone: () => void }) {
     const t3 = setTimeout(() => {
       if (!firedRef.current) {
         firedRef.current = true;
-        doneRef.current();   // transition to mailmind, exactly once
+        doneRef.current();
+
       }
     }, 2200);
     return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
