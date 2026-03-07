@@ -173,22 +173,22 @@ ALTER TABLE public.assistant_messages ENABLE ROW LEVEL SECURITY;
 -- users: users can read/update their own profile
 DROP POLICY IF EXISTS "users_select_own" ON public.users;
 CREATE POLICY "users_select_own" ON public.users
-  FOR SELECT USING (id = (current_setting('app.user_id', true))::uuid);
+  FOR SELECT USING (id = auth.uid());
 
 DROP POLICY IF EXISTS "users_insert_own" ON public.users;
 CREATE POLICY "users_insert_own" ON public.users
-  FOR INSERT WITH CHECK (id = (current_setting('app.user_id', true))::uuid);
+  FOR INSERT WITH CHECK (id = auth.uid());
 
 DROP POLICY IF EXISTS "users_update_own" ON public.users;
 CREATE POLICY "users_update_own" ON public.users
   FOR UPDATE 
-  USING (id = (current_setting('app.user_id', true))::uuid)
-  WITH CHECK (id = (current_setting('app.user_id', true))::uuid);
+  USING (id = auth.uid())
+  WITH CHECK (id = auth.uid());
 
 -- emails: users see only their own
 DROP POLICY IF EXISTS "emails_select_own" ON public.emails;
 CREATE POLICY "emails_select_own" ON public.emails
-  FOR SELECT USING ((current_setting('app.user_id', true))::uuid = user_id);
+  FOR SELECT USING (auth.uid() = user_id);
 
 DROP POLICY IF EXISTS "emails_insert_own" ON public.emails;
 CREATE POLICY "emails_insert_own" ON public.emails
