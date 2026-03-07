@@ -75,7 +75,7 @@ export async function ensureUserExists(session: Session): Promise<string> {
   if (!email) throw new Error('Session missing email');
 
   const admin = getSupabaseAdmin();
-  await admin
+  const { error } = await admin
     .from('users')
     .upsert(
       {
@@ -86,6 +86,10 @@ export async function ensureUserExists(session: Session): Promise<string> {
       },
       { onConflict: 'id' }
     );
+
+  if (error) {
+    throw new Error(`Failed to upsert user: ${error.message}`);
+  }
 
   return userId;
 }
