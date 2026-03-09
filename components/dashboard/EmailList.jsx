@@ -1,6 +1,6 @@
 "use client";
 
-export default function EmailList(props: any) {
+export default function EmailList(props) {
     const {
         emails,
         filteredEmails,
@@ -64,7 +64,7 @@ export default function EmailList(props: any) {
             </div>
 
             {/* Email Items */}
-            {filteredEmails.map((mail: any, index: number) => {
+            {filteredEmails.map((mail, index) => {
                 const score = getPriorityScore(mail);
 
                 return (

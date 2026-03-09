@@ -1,9 +1,19 @@
 import { NextResponse } from "next/server";
 
 export async function POST(req) {
-  const { text } = await req.json();
+  try {
+    const body = await req.json().catch(() => null);
+    if (!body?.text) {
+      return NextResponse.json({ error: "text field is required" }, { status: 400 });
+    }
 
-  const prompt = `
+    if (!process.env.OPENAI_API_KEY) {
+      return NextResponse.json({ error: "OpenAI API key not configured" }, { status: 500 });
+    }
+
+    const { text } = body;
+
+    const prompt = `
 Extract tasks and deadlines from this email.
 
 Return JSON only in this format:
@@ -18,30 +28,44 @@ Return JSON only in this format:
 }
 
 Email:
-${text}
+${text.slice(0, 4000)}
 `;
 
-  const res = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-    },
-    body: JSON.stringify({
-      model: "gpt-4o-mini",
-      messages: [{ role: "user", content: prompt }],
-    }),
-  });
+    const res = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: "gpt-4o-mini",
+        messages: [{ role: "user", content: prompt }],
+      }),
+    });
 
-  const data = await res.json();
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      console.error("OpenAI Tasks Error:", errData);
+      return NextResponse.json({ error: "OpenAI API error", tasks: [] }, { status: res.status });
+    }
 
-  let output = data.choices?.[0]?.message?.content;
+    const data = await res.json();
+    const raw = data.choices?.[0]?.message?.content || "";
 
-  try {
-    output = JSON.parse(output);
-  } catch {
-    output = { tasks: [] };
+    // Safely extract JSON block from response
+    const match = raw.match(/\{[\s\S]*\}/);
+    let output = { tasks: [] };
+    if (match) {
+      try {
+        output = JSON.parse(match[0]);
+      } catch {
+        output = { tasks: [] };
+      }
+    }
+
+    return NextResponse.json(output);
+  } catch (err) {
+    console.error("Tasks route error:", err);
+    return NextResponse.json({ error: "Internal server error", tasks: [] }, { status: 500 });
   }
-
-  return NextResponse.json(output);
 }

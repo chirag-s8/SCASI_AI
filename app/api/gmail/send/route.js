@@ -3,7 +3,7 @@ import { authOptions } from "../../auth/[...nextauth]/route";
 import { google } from "googleapis";
 import { NextResponse } from "next/server";
 
-function makeEmail(to: string, subject: string, message: string) {
+function makeEmail(to, subject, message) {
     const emailLines = [
         `To: ${to}`,
         `Subject: Re: ${subject}`,
@@ -19,11 +19,11 @@ function makeEmail(to: string, subject: string, message: string) {
         .replace(/=+$/, "");
 }
 
-export async function POST(req: Request) {
+export async function POST(req) {
     try {
         const session = await getServerSession(authOptions);
 
-        if (!session || !(session as any).accessToken) {
+        if (!session || !session.accessToken) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
@@ -31,7 +31,7 @@ export async function POST(req: Request) {
 
         const auth = new google.auth.OAuth2();
         auth.setCredentials({
-            access_token: (session as any).accessToken,
+            access_token: session.accessToken,
         });
 
         const gmail = google.gmail({ version: "v1", auth });
@@ -46,8 +46,8 @@ export async function POST(req: Request) {
         });
 
         return NextResponse.json({ success: true });
-    } catch (err: any) {
-        console.log("Send Email Error:", err.message);
+    } catch (err) {
+        console.error("Send Email Error:", err.message);
         return NextResponse.json({ error: err.message }, { status: 500 });
     }
 }

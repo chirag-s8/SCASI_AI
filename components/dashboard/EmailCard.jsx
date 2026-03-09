@@ -1,21 +1,6 @@
 "use client";
 
-interface EmailCardProps {
-    mail: any;
-    selectedMail: any;
-    onClick: () => void;
 
-    getInitials: (email: string) => string;
-    getPriorityScore: (mail: any) => number;
-    getEmailCategory: (mail: any) => string;
-    getCategoryColor: (category: string) => string;
-
-    isFirstTimeSender: (mail: any, allEmails: any[]) => boolean;
-    isSpamEmail: (mail: any) => boolean;
-
-    emails: any[];
-    aiPriorityMap: any;
-}
 
 export default function EmailCard({
     mail,
@@ -29,7 +14,7 @@ export default function EmailCard({
     isSpamEmail,
     emails,
     aiPriorityMap,
-}: EmailCardProps) {
+}) {
     const score = getPriorityScore(mail);
     const category = getEmailCategory(mail);
 

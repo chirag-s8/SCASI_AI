@@ -2,31 +2,18 @@
 
 import React from "react";
 
-type Props = {
-    activeFolder: string;
-    setActiveFolder: (f: string) => void;
-    counts: { inbox: number; starred: number; snoozed: number; done: number };
-    projects: string[];
-    setActiveProject: (p: string | null) => void;
-};
-
 export default function NavColumn({
     activeFolder,
     setActiveFolder,
     counts,
     projects,
     setActiveProject,
-}: Props) {
+}) {
     const NavButton = ({
         label,
         id,
         count,
         icon,
-    }: {
-        label: string;
-        id: string;
-        count?: number;
-        icon?: React.ReactNode;
     }) => (
         <button
             onClick={() => {

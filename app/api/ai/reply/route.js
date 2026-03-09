@@ -2,10 +2,10 @@ import { NextResponse } from "next/server";
 import Groq from "groq-sdk";
 
 const groq = new Groq({
-    apiKey: process.env.GROQ_API_KEY!,
+    apiKey: process.env.GROQ_API_KEY,
 });
 
-export async function POST(req: Request) {
+export async function POST(req) {
     try {
         const { subject, snippet } = await req.json();
 
@@ -38,7 +38,7 @@ Write a reply message:
         return NextResponse.json({
             reply: replyText,
         });
-    } catch (err: any) {
+    } catch (err) {
         return NextResponse.json(
             { error: err.message },
             { status: 500 }

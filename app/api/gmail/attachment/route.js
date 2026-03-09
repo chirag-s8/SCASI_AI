@@ -6,7 +6,7 @@ import { NextResponse } from "next/server";
 /* -----------------------------
    ✅ GET Attachment Download
 -------------------------------- */
-export async function GET(req: Request) {
+export async function GET(req) {
     try {
         const session = await getServerSession(authOptions);
 
@@ -32,7 +32,7 @@ export async function GET(req: Request) {
         // ✅ Google Auth
         const auth = new google.auth.OAuth2();
         auth.setCredentials({
-            access_token: (session as any).accessToken,
+            access_token: session.accessToken,
         });
 
         const gmail = google.gmail({ version: "v1", auth });
@@ -68,7 +68,7 @@ export async function GET(req: Request) {
             },
         });
 
-    } catch (err: any) {
+    } catch (err) {
         return NextResponse.json(
             { error: err.message || "Failed to download attachment" },
             { status: 500 }

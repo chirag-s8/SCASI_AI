@@ -6,7 +6,7 @@ import { NextResponse } from "next/server";
 /* -----------------------------
    ✅ Decode Base64
 -------------------------------- */
-function decodeBase64(data: string) {
+function decodeBase64(data) {
   return Buffer.from(
     data.replace(/-/g, "+").replace(/_/g, "/"),
     "base64"
@@ -16,7 +16,7 @@ function decodeBase64(data: string) {
 /* -----------------------------
    ✅ Extract Full Body Recursively
 -------------------------------- */
-function extractBody(payload: any): string {
+function extractBody(payload) {
   if (!payload) return "";
 
   // ✅ Prefer HTML
@@ -39,8 +39,8 @@ function extractBody(payload: any): string {
 /* -----------------------------
    ✅ Extract Attachments Info Recursively
 -------------------------------- */
-function extractAttachments(payload: any): any[] {
-  let files: any[] = [];
+function extractAttachments(payload) {
+  let files = [];
 
   if (!payload.parts) return files;
 
@@ -66,7 +66,7 @@ function extractAttachments(payload: any): any[] {
 /* -----------------------------
    ✅ GET Single Gmail Message
 -------------------------------- */
-export async function GET(req: Request) {
+export async function GET(req) {
   try {
     const session = await getServerSession(authOptions);
 
@@ -84,7 +84,7 @@ export async function GET(req: Request) {
     // ✅ Google Auth
     const auth = new google.auth.OAuth2();
     auth.setCredentials({
-      access_token: (session as any).accessToken,
+      access_token: session.accessToken,
     });
 
     const gmail = google.gmail({ version: "v1", auth });
@@ -98,14 +98,14 @@ export async function GET(req: Request) {
     const threadId = msg.data.threadId;
     const messageId =
       msg.data.payload?.headers?.find(
-        (h: any) => h.name === "Message-ID"
+        (h) => h.name === "Message-ID"
       )?.value || "";
 
     // ✅ Headers
     const headers = msg.data.payload?.headers || [];
 
-    const getHeader = (name: string) =>
-      headers.find((h: any) => h.name === name)?.value || "";
+    const getHeader = (name) =>
+      headers.find((h) => h.name === name)?.value || "";
 
     // ✅ Extract Body + Attachments
     const body = extractBody(msg.data.payload);
@@ -121,13 +121,13 @@ export async function GET(req: Request) {
       from: getHeader("From"),
       date: getHeader("Date"),
 
-      body: extractBody(msg.data.payload),
+      body,
       snippet: msg.data.snippet || "",
 
       attachments,
     });
 
-  } catch (err: any) {
+  } catch (err) {
     return NextResponse.json(
       { error: err.message || "Something went wrong" },
       { status: 500 }

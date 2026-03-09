@@ -1,16 +1,14 @@
 import { NextResponse } from "next/server";
 import Groq from "groq-sdk";
 
-export async function POST(req: Request) {
+const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+
+export async function POST(req) {
   try {
     const { subject, snippet, from, date } = await req.json();
 
     // ✅ Trim input to avoid token overload
     const safeSnippet = (snippet || "").slice(0, 2000);
-
-    const groq = new Groq({
-      apiKey: process.env.GROQ_API_KEY!,
-    });
 
     const chatCompletion = await groq.chat.completions.create({
       model: "llama-3.1-8b-instant",
@@ -44,7 +42,7 @@ ${safeSnippet}
     return NextResponse.json({
       summary: chatCompletion.choices[0].message.content,
     });
-  } catch (error: any) {
+  } catch (error) {
     console.error("SUMMARY ERROR:", error);
 
     // ✅ Handle Rate Limit

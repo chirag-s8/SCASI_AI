@@ -6,7 +6,7 @@ import { authOptions } from "../../auth/[...nextauth]/route";
 /* -----------------------------
    ✅ Base64 Encode Helper
 -------------------------------- */
-function encodeBase64(str: string) {
+function encodeBase64(str) {
     return Buffer.from(str)
         .toString("base64")
         .replace(/\+/g, "-")
@@ -17,7 +17,7 @@ function encodeBase64(str: string) {
 /* -----------------------------
    ✅ POST: Send Gmail Reply
 -------------------------------- */
-export async function POST(req: Request) {
+export async function POST(req) {
     try {
         // ✅ Session Check
         const session = await getServerSession(authOptions);
@@ -30,28 +30,21 @@ export async function POST(req: Request) {
         }
 
         // ✅ Frontend Data
-        const { to, subject, body, threadId, originalMessageId } =
-            await req.json();
+        const body = await req.json().catch(() => null);
+        const { to, subject, body: emailBody, threadId, originalMessageId } = body || {};
 
         // ✅ Validation
         if (!to) {
-            return NextResponse.json(
-                { error: "Recipient address required" },
-                { status: 400 }
-            );
+            return NextResponse.json({ error: "Recipient address required" }, { status: 400 });
         }
-
-        if (!body) {
-            return NextResponse.json(
-                { error: "Email body is required" },
-                { status: 400 }
-            );
+        if (!emailBody) {
+            return NextResponse.json({ error: "Email body is required" }, { status: 400 });
         }
 
         // ✅ OAuth Setup
         const auth = new google.auth.OAuth2();
         auth.setCredentials({
-            access_token: (session as any).accessToken,
+            access_token: session.accessToken,
         });
 
         const gmail = google.gmail({ version: "v1", auth });
@@ -61,12 +54,12 @@ export async function POST(req: Request) {
         -------------------------------- */
         const rawMessage = [
             `To: ${to}`,
-            `Subject: Re: ${subject}`,
-            `In-Reply-To: <${originalMessageId}>`,
-            `References: <${originalMessageId}>`,
+            `Subject: Re: ${subject || ""}`,
+            originalMessageId ? `In-Reply-To: <${originalMessageId}>` : "",
+            originalMessageId ? `References: <${originalMessageId}>` : "",
             "",
-            body,
-        ].join("\n");
+            emailBody,
+        ].filter(Boolean).join("\n");
 
         // ✅ Encode Message
         const encodedMessage = encodeBase64(rawMessage);
@@ -80,14 +73,9 @@ export async function POST(req: Request) {
             },
         });
 
-        console.log("✅ Reply Sent To:", to);
-
-        return NextResponse.json({
-            success: true,
-            sent,
-        });
-    } catch (err: any) {
-        console.log("❌ Reply Error:", err.message);
+        return NextResponse.json({ success: true });
+    } catch (err) {
+        console.error("Reply Error:", err.message);
 
         return NextResponse.json(
             { error: err.message },

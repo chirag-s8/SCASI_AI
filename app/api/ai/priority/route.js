@@ -1,11 +1,9 @@
 import { NextResponse } from "next/server";
 import Groq from "groq-sdk";
 
-const groq = new Groq({
-    apiKey: process.env.GROQ_API_KEY!,
-});
+const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
-export async function POST(req: Request) {
+export async function POST(req) {
     try {
         const { subject, snippet } = await req.json();
 
@@ -52,8 +50,8 @@ Respond ONLY as JSON:
             result: parsed,
         });
 
-    } catch (err: any) {
-        console.log("Priority API Error:", err.message);
+    } catch (err) {
+        console.error("Priority API Error:", err.message);
 
         return NextResponse.json(
             { error: err.message },
