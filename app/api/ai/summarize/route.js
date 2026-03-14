@@ -1,64 +1,40 @@
 import { NextResponse } from "next/server";
-import Groq from "groq-sdk";
-
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+import { nlpAgent } from "@/src/agents/nlp";
 
 export async function POST(req) {
-  try {
-    const { subject, snippet, from, date } = await req.json();
+    try {
+        const { subject, snippet, from, date } = await req.json();
 
-    // ✅ Trim input to avoid token overload
-    const safeSnippet = (snippet || "").slice(0, 2000);
+        const result = await nlpAgent.summarize({
+            subject: subject || "",
+            snippet: snippet || "",
+            from: from || undefined,
+            date: date || undefined,
+        });
 
-    const chatCompletion = await groq.chat.completions.create({
-      model: "llama-3.1-8b-instant",
+        const formatted = [
+            `📩 From: ${result.from}`,
+            `📅 Received Date: ${result.receivedDate}`,
+            result.deadline ? `⏳ Deadline: ${result.deadline}` : null,
+            `📌 Summary: ${result.summary}`,
+        ]
+            .filter(Boolean)
+            .join('\n');
 
-      messages: [
-        {
-          role: "user",
-          content: `
-You are an email assistant.
+        return NextResponse.json({ summary: formatted });
+    } catch (error) {
+        console.error("SUMMARY ERROR:", error);
 
-Summarize this email clearly in this format:
+        if (error?.message?.includes('rate')) {
+            return NextResponse.json(
+                { summary: "⚠️ Rate limit reached. Please wait 1 minute and try again." },
+                { status: 429 }
+            );
+        }
 
-📩 From: ...
-📅 Received Date: ...
-⏳ Deadline: (if mentioned)
-📌 Summary: (2-3 lines)
-
-Email:
-
-Subject: ${subject}
-From: ${from}
-Received: ${date}
-
-Body:
-${safeSnippet}
-          `,
-        },
-      ],
-    });
-
-    return NextResponse.json({
-      summary: chatCompletion.choices[0].message.content,
-    });
-  } catch (error) {
-    console.error("SUMMARY ERROR:", error);
-
-    // ✅ Handle Rate Limit
-    if (error?.status === 429) {
-      return NextResponse.json(
-        {
-          summary:
-            "⚠️ Groq rate limit reached. Please wait 1 minute and try again.",
-        },
-        { status: 429 }
-      );
+        return NextResponse.json(
+            { summary: "❌ Error generating summary" },
+            { status: 500 }
+        );
     }
-
-    return NextResponse.json(
-      { summary: "❌ Error generating summary" },
-      { status: 500 }
-    );
-  }
 }

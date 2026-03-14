@@ -1,52 +1,31 @@
 import { NextResponse } from "next/server";
-import Groq from "groq-sdk";
-
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+import { nlpAgent } from "@/src/agents/nlp";
 
 export async function POST(req) {
-  try {
-    const { subject, snippet } = await req.json();
+    try {
+        const { subject, snippet } = await req.json();
 
-    // ✅ Trim input
-    const safeSnippet = (snippet || "").slice(0, 2000);
+        const result = await nlpAgent.explain({
+            subject: subject || "",
+            snippet: snippet || "",
+        });
 
-    const chatCompletion = await groq.chat.completions.create({
-      model: "llama-3.1-8b-instant",
+        const explanation = result.bullets.join('\n');
 
-      messages: [
-        {
-          role: "user",
-          content: `
-Explain why this email is important in 2-3 bullet points.
+        return NextResponse.json({ explanation });
+    } catch (error) {
+        console.error("EXPLAIN ERROR:", error);
 
-Subject: ${subject}
+        if (error?.message?.includes('rate')) {
+            return NextResponse.json(
+                { explanation: "⚠️ Rate limit reached. Please wait 1 minute before retrying." },
+                { status: 429 }
+            );
+        }
 
-Body:
-${safeSnippet}
-          `,
-        },
-      ],
-    });
-
-    return NextResponse.json({
-      explanation: chatCompletion.choices[0].message.content,
-    });
-  } catch (error) {
-    console.error("EXPLAIN ERROR:", error);
-
-    if (error?.status === 429) {
-      return NextResponse.json(
-        {
-          explanation:
-            "⚠️ Rate limit reached. Please wait 1 minute before retrying.",
-        },
-        { status: 429 }
-      );
+        return NextResponse.json(
+            { explanation: "❌ Error generating explanation" },
+            { status: 500 }
+        );
     }
-
-    return NextResponse.json(
-      { explanation: "❌ Error generating explanation" },
-      { status: 500 }
-    );
-  }
 }

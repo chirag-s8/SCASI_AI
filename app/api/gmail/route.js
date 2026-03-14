@@ -66,10 +66,22 @@ export async function GET(req) {
       nextPageToken: listRes.data.nextPageToken || null,
     });
   } catch (err) {
-    return NextResponse.json({
-      emails: [],
-      nextPageToken: null,
-      error: err.message,
-    });
+    console.error("Gmail API error:", err.message);
+
+    const isAuthError =
+      err.code === 401 ||
+      err.message?.includes("invalid_grant") ||
+      err.message?.includes("Token has been expired");
+
+    return NextResponse.json(
+      {
+        emails: [],
+        nextPageToken: null,
+        error: isAuthError
+          ? "Session expired. Please sign out and sign in again."
+          : err.message,
+      },
+      { status: isAuthError ? 401 : 500 }
+    );
   }
 }

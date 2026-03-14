@@ -1,8 +1,20 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "../../auth/[...nextauth]/route";
-import { getSupabaseAdmin } from "@/lib/supabase";
+import { getSupabaseAdmin, ensureUserExists } from "@/lib/supabase";
 import { getAppUserIdFromSession } from "@/lib/appUser";
+import { ensureUser } from "@/src/agents/rag/repository";
+import { safeISODate } from "@/lib/dateUtils";
+
+interface EmailPayload {
+  gmail_id?: string;
+  id?: string;
+  subject?: string;
+  from?: string;
+  date?: string;
+  snippet?: string;
+  body?: string;
+}
 
 export async function GET() {
   const session = await getServerSession(authOptions);
@@ -26,7 +38,15 @@ export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const userId = getAppUserIdFromSession(session);
+  let userId: string;
+  try {
+    userId = await ensureUserExists(session);
+    await ensureUser(userId, session.user?.email ?? '', session.user?.name, session.user?.image);
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Failed to provision user';
+    console.error('[db/emails] ensureUserExists failed:', message);
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
 
   let body: unknown;
   try {
@@ -51,15 +71,18 @@ export async function POST(req: Request) {
 
   const rows = emails
     .filter(Boolean)
-    .map((e: any) => ({
-      user_id: userId,
-      gmail_id: e.gmail_id ?? e.id ?? null,
-      subject: e.subject ?? null,
-      from: e.from ?? null,
-      date: e.date ?? null,
-      snippet: e.snippet ?? null,
-      body: e.body ?? null,
-    }));
+    .map((e) => {
+      const email = e as EmailPayload;
+      return {
+        user_id: userId,
+        gmail_id: email.gmail_id ?? email.id ?? null,
+        subject: email.subject ?? null,
+        from: email.from ?? null,
+        date: safeISODate(email.date),
+        snippet: email.snippet ?? null,
+        body: email.body ?? null,
+      };
+    });
 
   if (rows.length === 0) return NextResponse.json({ inserted: 0 });
 

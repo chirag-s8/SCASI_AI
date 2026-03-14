@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Image from "next/image";
 
 export default function SplashScreen() {
     const [animate, setAnimate] = useState(false);
@@ -23,13 +24,17 @@ export default function SplashScreen() {
                 background: "white",
             }}
         >
-            <img
+            <Image
                 src="/logo.png"
                 alt="Mail Mind Logo"
+                width={230}
+                height={230}
+                priority
                 style={{
-                    width: animate ? "230px" : "40px", // ✅ zoom small → big
-                    opacity: animate ? 1 : 0, // ✅ fade transparent → visible
-                    transition: "all 1.5s ease-in-out", // ✅ smooth animation
+                    width: animate ? "230px" : "40px",
+                    height: "auto",
+                    opacity: animate ? 1 : 0,
+                    transition: "all 1.5s ease-in-out",
                 }}
             />
         </div>

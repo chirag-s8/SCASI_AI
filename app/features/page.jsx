@@ -635,7 +635,7 @@ export default function FeaturesPage() {
                             color: "#1e1b4b", marginBottom: 22, fontFamily: "'Outfit',sans-serif"
                         }}>
                             Everything you need.<br />
-                            <GradText>Nothing you don't.</GradText>
+                            <GradText>Nothing you don&apos;t.</GradText>
                         </h1>
                         <p style={{ fontSize: 17, color: "#6b7280", lineHeight: 1.82, maxWidth: 520, marginBottom: 44, fontFamily: "'Outfit',sans-serif" }}>
                             Scasi ranks urgency, drafts replies, extracts tasks, and prevents burnout —
@@ -731,7 +731,7 @@ export default function FeaturesPage() {
                             "Context-aware replies drawn from full email thread history",
                             "Fully editable before sending — you always have the final say",
                             "One-click task extraction: meetings, payments, deadlines auto-detected",
-                            "To-do titles in 3–6 actionable words — e.g. 'Pay invoice by Friday'",
+                            "To-do titles in 3–6 actionable words — e.g. \"Pay invoice by Friday\"",
                         ]}
                         vLabel="Watch AI Reply in Action"
                         vSub="Feature walkthrough · 90 sec"
@@ -759,7 +759,7 @@ export default function FeaturesPage() {
                     <Sub>Enter Focus Mode and see only what needs your attention today. Full-screen, numbered, prioritized — your most important work, nothing else.</Sub>
                     <FRow
                         chip="Deep Focus"
-                        head={<>Today's tasks, <span style={{ color: "#9333ea" }}>only today's tasks.</span></>}
+                        head={<>Today&apos;s tasks, <span style={{ color: "#9333ea" }}>only today&apos;s tasks.</span></>}
                         sub="Focus Mode strips out everything that isn't urgent right now — no Re:, no Fwd:, no next week. Just the emails demanding action today, presented beautifully."
                         bullets={[
                             "Strict today-only filter: urgent, tonight, ASAP, deadline keywords",
@@ -794,7 +794,7 @@ export default function FeaturesPage() {
                         <div>
                             <div style={{ fontSize: 11, fontWeight: 700, color: "#a855f7", letterSpacing: 1.2, textTransform: "uppercase", fontFamily: "'Outfit',sans-serif", marginBottom: 4 }}>Feature 04 — Wellbeing</div>
                             <h2 style={{ fontSize: "clamp(30px,3vw,50px)", fontWeight: 900, letterSpacing: "-1.8px", lineHeight: 1.08, fontFamily: "'Outfit',sans-serif", color: "rgba(255,255,255,.95)", marginBottom: 0 }}>
-                                Your inbox shouldn't{" "}
+                                Your inbox shouldn{"'"}t{" "}
                                 <span style={{ background: "linear-gradient(135deg,#a855f7,#c084fc)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>burn you out.</span>
                             </h2>
                         </div>
@@ -810,7 +810,7 @@ export default function FeaturesPage() {
                             "Stress score 0–100 based on urgency signals and after-hours activity",
                             "Burnout risk: Low / Medium / High with animated visual indicators",
                             "Productivity rate: (completed ÷ received) × 100 with trend tracking",
-                            "Personalised tips: 'Set email limits after 9 PM', 'Delegate low-priority tasks'",
+                            "Personalised tips: \"Set email limits after 9 PM\", \"Delegate low-priority tasks\"",
                         ]}
                         vLabel="See Burnout Dashboard"
                         vSub="Feature walkthrough · 2 min"

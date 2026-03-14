@@ -5,7 +5,6 @@ import { signIn } from "next-auth/react";
 import { useEffect, useState, useRef } from "react";
 import {
     motion,
-    AnimatePresence,
     useMotionValue,
     useSpring,
 } from "framer-motion";
@@ -14,10 +13,9 @@ import {
    Active Link Hook
 ─────────────────────────────────────────── */
 function useActiveLink() {
-    const [active, setActive] = useState("");
-    useEffect(() => {
-        setActive(window.location.pathname);
-    }, []);
+    const [active] = useState(() =>
+        typeof window !== "undefined" ? window.location.pathname : ""
+    );
     return active;
 }
 
@@ -61,7 +59,6 @@ const NAV_LINKS = [
 export default function Header() {
     const [time, setTime] = useState("");
     const [scrolled, setScrolled] = useState(false);
-    const [hovered, setHovered] = useState(null);
     const [signingIn, setSigningIn] = useState(false);
 
     const active = useActiveLink();
@@ -246,6 +243,7 @@ export default function Header() {
                     </nav>
 
                     {/* CTA */}
+                    {/* eslint-disable react-hooks/refs */}
                     <motion.button
                         ref={magnetic.ref}
                         onMouseMove={magnetic.handleMouseMove}
@@ -267,6 +265,7 @@ export default function Header() {
                     >
                         {signingIn ? "Signing in…" : "Sign in with Google →"}
                     </motion.button>
+                    {/* eslint-enable react-hooks/refs */}
                 </motion.div>
             </motion.header>
         </>

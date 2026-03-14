@@ -17,7 +17,7 @@ export async function GET() {
     try {
       const { error } = await supabase.from('users').select('*', { count: 'exact', head: true });
       anonConnectionWorks = !error;
-    } catch (e) {
+    } catch (_e) {
       anonConnectionWorks = false;
     }
 
@@ -28,7 +28,7 @@ export async function GET() {
         const admin = getSupabaseAdmin();
         const { error } = await admin.from('users').select('*', { count: 'exact', head: true });
         adminConnectionWorks = !error;
-      } catch (e) {
+      } catch (_e) {
         adminConnectionWorks = false;
       }
     }
@@ -50,10 +50,10 @@ export async function GET() {
         ? 'Supabase connection successful!' 
         : 'Supabase connection failed. Check your credentials.',
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     return NextResponse.json({
       status: 'error',
-      error: error.message,
+      error: error instanceof Error ? error.message : 'Unknown error',
     }, { status: 500 });
   }
 }

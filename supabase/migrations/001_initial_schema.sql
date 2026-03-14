@@ -24,7 +24,7 @@ CREATE TABLE IF NOT EXISTS public.users (
 -- emails: stores synced Gmail/Outlook messages
 CREATE TABLE IF NOT EXISTS public.emails (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL,
   gmail_id TEXT NOT NULL,
   subject TEXT,
   "from" TEXT,
@@ -33,6 +33,7 @@ CREATE TABLE IF NOT EXISTS public.emails (
   body TEXT,
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now(),
+  CONSTRAINT emails_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE,
   UNIQUE(user_id, gmail_id)
 );
 

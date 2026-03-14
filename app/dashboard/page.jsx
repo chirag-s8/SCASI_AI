@@ -1,9 +1,14 @@
 "use client"
 
-import MailMindDashboard from "@/components/dashboard/MailMindDashboard";
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 
 export default function DashboardPage() {
-    return <MailMindDashboard onNavigate={function (folder) {
-        throw new Error("Function not implemented.");
-    }} />;
+    const router = useRouter();
+
+    useEffect(() => {
+        router.replace("/");
+    }, [router]);
+
+    return null;
 }

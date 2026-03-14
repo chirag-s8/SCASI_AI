@@ -2,19 +2,16 @@
 
 import React from "react";
 
-export default function NavColumn({
+function NavButton({
+    label,
+    id,
+    count,
+    icon,
     activeFolder,
     setActiveFolder,
-    counts,
-    projects,
     setActiveProject,
 }) {
-    const NavButton = ({
-        label,
-        id,
-        count,
-        icon,
-    }) => (
+    return (
         <button
             onClick={() => {
                 setActiveProject(null);
@@ -64,7 +61,15 @@ export default function NavColumn({
             }}>{typeof count === "number" ? count : ""}</span>
         </button>
     );
+}
 
+export default function NavColumn({
+    activeFolder,
+    setActiveFolder,
+    counts,
+    projects,
+    setActiveProject,
+}) {
     return (
         <div style={{
             width: 220,
@@ -78,10 +83,10 @@ export default function NavColumn({
         }}>
             <div style={{ fontWeight: 800, fontSize: 14, color: "#0f172a", padding: "6px 6px" }}>Mail</div>
 
-            <NavButton id="inbox" label="Inbox" count={counts.inbox} icon="📥" />
-            <NavButton id="starred" label="Starred" count={counts.starred} icon="⭐" />
-            <NavButton id="snoozed" label="Snoozed" count={counts.snoozed} icon="⏳" />
-            <NavButton id="done" label="Done" count={counts.done} icon="✅" />
+            <NavButton id="inbox" label="Inbox" count={counts.inbox} icon="📥" activeFolder={activeFolder} setActiveFolder={setActiveFolder} setActiveProject={setActiveProject} />
+            <NavButton id="starred" label="Starred" count={counts.starred} icon="⭐" activeFolder={activeFolder} setActiveFolder={setActiveFolder} setActiveProject={setActiveProject} />
+            <NavButton id="snoozed" label="Snoozed" count={counts.snoozed} icon="⏳" activeFolder={activeFolder} setActiveFolder={setActiveFolder} setActiveProject={setActiveProject} />
+            <NavButton id="done" label="Done" count={counts.done} icon="✅" activeFolder={activeFolder} setActiveFolder={setActiveFolder} setActiveProject={setActiveProject} />
 
             <hr style={{ border: "none", borderTop: "1px solid #E6EEF6", margin: "6px 0" }} />
 

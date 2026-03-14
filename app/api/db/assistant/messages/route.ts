@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "../../../auth/[...nextauth]/route";
-import { getSupabaseAdmin } from "@/lib/supabase";
+import { getSupabaseAdmin, ensureUserExists } from "@/lib/supabase";
 import { getAppUserIdFromSession } from "@/lib/appUser";
+import { ensureUser } from "@/src/agents/rag/repository";
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const ALLOWED_ROLES = new Set(["user", "assistant", "system"]);
@@ -45,7 +46,16 @@ export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const userId = getAppUserIdFromSession(session);
+  let userId: string;
+  try {
+    userId = await ensureUserExists(session);
+    await ensureUser(userId, session.user?.email ?? '', session.user?.name, session.user?.image);
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Failed to provision user';
+    console.error('[db/assistant/messages] ensureUserExists failed:', message);
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+
   const { session_id, role, content } = await req.json();
 
   if (!session_id || !role || !content) {

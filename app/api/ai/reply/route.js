@@ -1,44 +1,25 @@
 import { NextResponse } from "next/server";
-import Groq from "groq-sdk";
-
-const groq = new Groq({
-    apiKey: process.env.GROQ_API_KEY,
-});
+import { nlpAgent } from "@/src/agents/nlp";
 
 export async function POST(req) {
     try {
         const { subject, snippet } = await req.json();
 
-        const chat = await groq.chat.completions.create({
-            model: "llama-3.1-8b-instant",
-
-            messages: [
-                {
-                    role: "system",
-                    content:
-                        "You are an email assistant. Write a short, polite, professional reply.",
-                },
-                {
-                    role: "user",
-                    content: `
-Subject: ${subject}
-
-Email Content:
-${snippet}
-
-Write a reply message:
-          `,
-                },
-            ],
-        });
-
-        const replyText =
-            chat.choices[0]?.message?.content || "No reply generated.";
+        const result = await nlpAgent.draftReply({ subject: subject || "", snippet: snippet || "" });
 
         return NextResponse.json({
-            reply: replyText,
+            reply: result.reply,
         });
     } catch (err) {
+        console.error("Reply API Error:", err.message);
+
+        if (err?.message?.includes('rate')) {
+            return NextResponse.json(
+                { reply: "⚠️ Rate limit reached. Please wait and try again." },
+                { status: 429 }
+            );
+        }
+
         return NextResponse.json(
             { error: err.message },
             { status: 500 }

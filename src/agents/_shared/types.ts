@@ -161,7 +161,7 @@ export const AgentContextSchema = z.object({
     sessionId: z.string().min(1).transform(SessionId).optional(),
     requestedAt: z.string().datetime(),
     agentName: AgentName,
-    metadata: z.record(z.unknown()).optional(),
+    metadata: z.record(z.string(), z.unknown()).optional(),
 });
 
 // ---------------------------------------------------------------------------

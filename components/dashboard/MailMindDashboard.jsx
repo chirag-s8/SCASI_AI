@@ -1,8 +1,29 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { signOut } from "next-auth/react";
 
-function MailMindDashboard({ onNavigate }) {
+function MailMindDashboard({ onNavigate, session, emailCount, loadingEmails, emails = [] }) {
+    const [showUserMenu, setShowUserMenu] = useState(false);
+    const userName = session?.user?.name || "User";
+    const userEmail = session?.user?.email || "";
+    const userInitial = userName.charAt(0).toUpperCase();
+    const inboxCount = typeof emailCount === "number" ? emailCount : 0;
+
+    // Compute real stats from emails
+    const now = new Date();
+    const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const recentEmails = emails.filter(m => m.date && new Date(m.date) >= weekAgo);
+    const urgentCount = emails.filter(m => {
+        const t = ((m.subject || "") + " " + (m.snippet || "")).toLowerCase();
+        return t.includes("urgent") || t.includes("deadline") || t.includes("asap");
+    }).length;
+    const lateNightCount = emails.filter(m => {
+        if (!m.date) return false;
+        const h = new Date(m.date).getHours();
+        return h >= 22 || h <= 5;
+    }).length;
+    const burnoutScore = Math.min(100, Math.round((urgentCount * 8) + (lateNightCount * 12) + (inboxCount > 30 ? 15 : 0)));
 
     useEffect(() => {
         // ── Google Fonts (DM Serif / DM Sans / JetBrains Mono) ──
@@ -23,13 +44,8 @@ function MailMindDashboard({ onNavigate }) {
             });
             const ring = document.getElementById("mm-ring");
             if (ring) {
-                const full = 2 * Math.PI * 24;
-                ring.style.strokeDashoffset = String(full);
                 ring.style.transition =
                     "stroke-dashoffset 1.5s cubic-bezier(.23,1,.32,1) .4s";
-                requestAnimationFrame(() => {
-                    ring.style.strokeDashoffset = String(full - (55 / 100) * full);
-                });
             }
         }, 120);
 
@@ -155,6 +171,8 @@ function MailMindDashboard({ onNavigate }) {
             const t = e.target;
             if (!t.closest("#mm-np") && !t.closest("#mm-nbtn"))
                 np?.classList.remove("mm-open");
+            if (!t.closest(".mm-avatar") && !t.closest(".mm-user-menu"))
+                setShowUserMenu(false);
         };
         document.addEventListener("click", docClick);
 
@@ -325,6 +343,13 @@ grid-template-columns: 40% 60%;
         .mm-chip{display:inline-flex;align-items:center;gap:3px;font-size:9.5px;font-family:'JetBrains Mono',monospace;padding:1px 6px;border-radius:4px;background:var(--mm-glass);color:var(--mm-text3);border:1px solid var(--mm-border);}
         [data-mmtip]{position:relative;}
         [data-mmtip]:hover::after{content:attr(data-mmtip);position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%);background:rgba(37,29,69,.97);border:1px solid var(--mm-border2);color:var(--mm-text2);font-size:10px;white-space:nowrap;padding:3px 8px;border-radius:5px;pointer-events:none;z-index:200;}
+        @keyframes mm-spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+        @keyframes mm-shimmer{0%{background-position:-200% 0}100%{background-position:200% 0}}
+        .mm-spinner{border:2px solid var(--mm-accent2);border-top-color:transparent;border-radius:50%;animation:mm-spin .7s linear infinite;flex-shrink:0;}
+        .mm-loading-banner{display:flex;align-items:center;gap:12px;padding:14px 15px;background:linear-gradient(135deg,rgba(124,58,237,0.10),rgba(167,139,250,0.06));border-bottom:1px solid rgba(167,139,250,0.15);}
+        .mm-skel{background:linear-gradient(90deg,rgba(167,139,250,.06) 25%,rgba(167,139,250,.16) 50%,rgba(167,139,250,.06) 75%);background-size:200% 100%;animation:mm-shimmer 1.5s ease-in-out infinite;border-radius:4px;}
+        .mm-skel-line{height:10px;margin-bottom:4px;}
+        .mm-skel-num{height:22px;width:40px;margin-bottom:2px;}
         /* mid welcome */
       `}</style>
 
@@ -377,7 +402,68 @@ grid-template-columns: 40% 60%;
                                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 0 1-3.46 0" /></svg>
                                 <span className="mm-nbadge" id="mm-nbadge">3</span>
                             </button>
-                            <div className="mm-avatar" data-mmtip="Saloni K.">S</div>
+                            <div style={{ position: "relative" }}>
+                                <div
+                                    className="mm-avatar"
+                                    data-mmtip={userName}
+                                    onClick={() => setShowUserMenu(v => !v)}
+                                >
+                                    {userInitial}
+                                </div>
+                                {showUserMenu && (
+                                    <div className="mm-user-menu" style={{
+                                        position: "absolute",
+                                        top: "calc(100% + 8px)",
+                                        right: 0,
+                                        width: 220,
+                                        background: "rgba(37,29,69,0.97)",
+                                        border: "1px solid var(--mm-border2)",
+                                        borderRadius: 11,
+                                        boxShadow: "0 20px 60px rgba(10,6,25,.7)",
+                                        zIndex: 300,
+                                        overflow: "hidden",
+                                        animation: "mm-pdrop .17s ease",
+                                    }}>
+                                        <div style={{
+                                            padding: "12px 14px",
+                                            borderBottom: "1px solid var(--mm-border)",
+                                        }}>
+                                            <div style={{ fontSize: 12, fontWeight: 600, color: "var(--mm-text)", marginBottom: 2 }}>
+                                                {userName}
+                                            </div>
+                                            <div style={{ fontSize: 10.5, color: "var(--mm-text3)" }}>
+                                                {userEmail}
+                                            </div>
+                                        </div>
+                                        <div style={{ padding: 6 }}>
+                                            <button
+                                                onClick={() => signOut({ callbackUrl: "/" })}
+                                                style={{
+                                                    width: "100%",
+                                                    display: "flex",
+                                                    alignItems: "center",
+                                                    gap: 8,
+                                                    padding: "8px 10px",
+                                                    borderRadius: 7,
+                                                    border: "none",
+                                                    background: "transparent",
+                                                    color: "var(--mm-red)",
+                                                    fontSize: 12,
+                                                    fontWeight: 500,
+                                                    cursor: "pointer",
+                                                    fontFamily: "inherit",
+                                                    transition: "background .12s",
+                                                }}
+                                                onMouseOver={e => (e.currentTarget.style.background = "rgba(248,113,113,.12)")}
+                                                onMouseOut={e => (e.currentTarget.style.background = "transparent")}
+                                            >
+                                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" /></svg>
+                                                Sign out
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     </header>
 
@@ -391,7 +477,7 @@ grid-template-columns: 40% 60%;
                         <span className="mm-ns">Mail</span>
                         <div className="mm-ni mm-active" onClick={() => onNavigate("inbox")}>
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M22 12h-6l-2 3H10l-2-3H2" /><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 17.76 4H6.24a2 2 0 0 0-1.79 1.11z" /></svg>
-                            Inbox <span className="mm-nb mm-new">134</span>
+                            Inbox <span className="mm-nb mm-new">{loadingEmails ? <span className="mm-spinner" style={{ width: 9, height: 9, borderWidth: 1.5, display: "inline-block" }} /> : inboxCount}</span>
                         </div>
                         <div className="mm-ni" onClick={() => onNavigate("starred")}>
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" /></svg>
@@ -411,7 +497,7 @@ grid-template-columns: 40% 60%;
                         </div>
                         <div className="mm-ni" onClick={() => onNavigate("drafts")}>
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>
-                            Drafts <span className="mm-nb">11</span>
+                            Drafts
                         </div>
                         <div className="mm-ni" onClick={() => onNavigate("archive")}>
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12" /><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 17.76 4H6.24a2 2 0 0 0-1.79 1.11z" /></svg>
@@ -435,13 +521,13 @@ grid-template-columns: 40% 60%;
 
                         <div className="mm-nd"></div>
                         <span className="mm-ns">AI Features</span>
-                        <div className="mm-ai"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z" /></svg>Priority Scoring <span className="mm-aidot" style={{ background: "#f87171" }}></span></div>
-                        <div className="mm-ai"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><polygon points="12 2 2 7 12 12 22 7 12 2" /><polyline points="2 17 12 22 22 17" /><polyline points="2 12 12 17 22 12" /></svg>Categorisation <span className="mm-aidot" style={{ background: "#a78bfa" }}></span></div>
-                        <div className="mm-ai"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><circle cx="12" cy="12" r="10" /><line x1="4.93" y1="4.93" x2="19.07" y2="19.07" /></svg>Spam Shield <span className="mm-aidot" style={{ background: "#fbbf24" }}></span></div>
-                        <div className="mm-ai"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><rect x="3" y="4" width="18" height="18" rx="2" /><line x1="3" y1="10" x2="21" y2="10" /></svg>Deadline Extract <span className="mm-aidot" style={{ background: "#34d399" }}></span></div>
-                        <div className="mm-ai"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>Handle For Me <span className="mm-aidot" style={{ background: "#7c3aed" }}></span></div>
-                        <div className="mm-ai"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><circle cx="12" cy="12" r="10" /><circle cx="12" cy="12" r="6" /><circle cx="12" cy="12" r="2" /></svg>Focus Mode <span className="mm-aidot" style={{ background: "#c084fc" }}></span></div>
-                        <div className="mm-ai"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17" /><polyline points="16 7 22 7 22 13" /></svg>Weekly Analysis <span className="mm-aidot" style={{ background: "#34d399" }}></span></div>
+                        <div className="mm-ai" onClick={() => onNavigate("inbox")} style={{ cursor: "pointer" }}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z" /></svg>Priority Scoring <span className="mm-aidot" style={{ background: "#f87171" }}></span></div>
+                        <div className="mm-ai" onClick={() => onNavigate("inbox")} style={{ cursor: "pointer" }}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><polygon points="12 2 2 7 12 12 22 7 12 2" /><polyline points="2 17 12 22 22 17" /><polyline points="2 12 12 17 22 12" /></svg>Categorisation <span className="mm-aidot" style={{ background: "#a78bfa" }}></span></div>
+                        <div className="mm-ai" onClick={() => onNavigate("spam")} style={{ cursor: "pointer" }}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><circle cx="12" cy="12" r="10" /><line x1="4.93" y1="4.93" x2="19.07" y2="19.07" /></svg>Spam Shield <span className="mm-aidot" style={{ background: "#fbbf24" }}></span></div>
+                        <div className="mm-ai" onClick={() => onNavigate("inbox")} style={{ cursor: "pointer" }}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><rect x="3" y="4" width="18" height="18" rx="2" /><line x1="3" y1="10" x2="21" y2="10" /></svg>Deadline Extract <span className="mm-aidot" style={{ background: "#34d399" }}></span></div>
+                        <div className="mm-ai" onClick={() => onNavigate("inbox")} style={{ cursor: "pointer" }}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>Handle For Me <span className="mm-aidot" style={{ background: "#7c3aed" }}></span></div>
+                        <div className="mm-ai" onClick={() => onNavigate("inbox")} style={{ cursor: "pointer" }}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><circle cx="12" cy="12" r="10" /><circle cx="12" cy="12" r="6" /><circle cx="12" cy="12" r="2" /></svg>Focus Mode <span className="mm-aidot" style={{ background: "#c084fc" }}></span></div>
+                        <div className="mm-ai" onClick={() => onNavigate("inbox")} style={{ cursor: "pointer" }}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17" /><polyline points="16 7 22 7 22 13" /></svg>Weekly Analysis <span className="mm-aidot" style={{ background: "#34d399" }}></span></div>
 
                         <div className="mm-nd"></div>
                         <span className="mm-ns">Labels</span>
@@ -459,6 +545,25 @@ grid-template-columns: 40% 60%;
 
                     {/* ── RIGHT PANEL ── */}
                     <aside className="mm-right">
+                        {/* LOADING BANNER */}
+                        {loadingEmails && (
+                            <div className="mm-loading-banner">
+                                <div className="mm-spinner" style={{ width: 18, height: 18 }} />
+                                <div style={{ flex: 1 }}>
+                                    <div style={{ fontSize: 12, fontWeight: 600, color: "var(--mm-text)", marginBottom: 2 }}>Syncing your inbox…</div>
+                                    <div style={{ fontSize: 10.5, color: "var(--mm-text3)" }}>Fetching emails from Gmail</div>
+                                </div>
+                                <div style={{ display: "flex", gap: 4 }}>
+                                    {[0, 1, 2].map(i => (
+                                        <div key={i} style={{
+                                            width: 5, height: 5, borderRadius: "50%",
+                                            background: "var(--mm-accent2)",
+                                            animation: `mm-pulse 1.4s ease-in-out ${i * 0.2}s infinite`,
+                                        }} />
+                                    ))}
+                                </div>
+                            </div>
+                        )}
                         {/* BURNOUT DASHBOARD */}
                         <div className="mm-ps">
                             <div className="mm-ph2" style={{ marginBottom: 8 }}>
@@ -466,14 +571,14 @@ grid-template-columns: 40% 60%;
                                 <span className="mm-pl" onClick={() => onNavigate("inbox")}>Full report →</span>
                             </div>
                             <div className="mm-sg">
-                                <div className="mm-sc"><div className="mm-sc-l">Received</div><div className="mm-sc-v">156</div><div className="mm-sc-d mm-du">↑ 12% vs prev</div></div>
-                                <div className="mm-sc"><div className="mm-sc-l">Completed</div><div className="mm-sc-v">38</div><div className="mm-sc-d mm-du">↑ 8% vs prev</div></div>
-                                <div className="mm-sc"><div className="mm-sc-l">Urgent</div><div className="mm-sc-v">24</div><div className="mm-sc-d mm-dd">↑ 6 vs avg</div></div>
-                                <div className="mm-sc"><div className="mm-sc-l">Late Night</div><div className="mm-sc-v">7</div><div className="mm-sc-d mm-dw">⚠ After 10 pm</div></div>
+                                <div className="mm-sc"><div className="mm-sc-l">Received</div>{loadingEmails ? <div className="mm-skel mm-skel-num" /> : <div className="mm-sc-v">{inboxCount}</div>}<div className="mm-sc-d mm-du">This week: {recentEmails.length}</div></div>
+                                <div className="mm-sc"><div className="mm-sc-l">Recent (7d)</div>{loadingEmails ? <div className="mm-skel mm-skel-num" /> : <div className="mm-sc-v">{recentEmails.length}</div>}<div className="mm-sc-d mm-du">Last 7 days</div></div>
+                                <div className="mm-sc"><div className="mm-sc-l">Urgent</div>{loadingEmails ? <div className="mm-skel mm-skel-num" /> : <div className="mm-sc-v">{urgentCount}</div>}<div className="mm-sc-d mm-dd">{urgentCount > 5 ? "↑ High" : "Normal"}</div></div>
+                                <div className="mm-sc"><div className="mm-sc-l">Late Night</div>{loadingEmails ? <div className="mm-skel mm-skel-num" /> : <div className="mm-sc-v">{lateNightCount}</div>}<div className="mm-sc-d mm-dw">{lateNightCount > 0 ? "⚠ After 10 pm" : "✓ Healthy"}</div></div>
                             </div>
                             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
                                 <span className="mm-pt">Burnout Score — Weekly</span>
-                                <span className="mm-chip">⚠ Medium Risk</span>
+                                <span className="mm-chip">{burnoutScore >= 70 ? "🔥 High Risk" : burnoutScore >= 40 ? "⚠ Medium Risk" : "✓ Low Risk"}</span>
                             </div>
                             <div className="mm-cw">
                                 <svg className="mm-ch" viewBox="0 0 310 96" preserveAspectRatio="none">
@@ -503,24 +608,24 @@ grid-template-columns: 40% 60%;
                                 <div className="mm-bringw">
                                     <svg width="60" height="60" className="mm-bring" viewBox="0 0 60 60">
                                         <circle className="mm-rbg" cx="30" cy="30" r="24" />
-                                        <circle className="mm-rfg" cx="30" cy="30" r="24" stroke="#fbbf24" strokeDasharray="150.8" strokeDashoffset="67.9" id="mm-ring" />
+                                        <circle className="mm-rfg" cx="30" cy="30" r="24" stroke={burnoutScore >= 70 ? "#f87171" : burnoutScore >= 40 ? "#fbbf24" : "#34d399"} strokeDasharray="150.8" strokeDashoffset={String(150.8 - (burnoutScore / 100) * 150.8)} id="mm-ring" />
                                     </svg>
-                                    <div className="mm-rlbl"><span className="mm-rv">55</span><span className="mm-rs">/100</span></div>
+                                    <div className="mm-rlbl"><span className="mm-rv">{burnoutScore}</span><span className="mm-rs">/100</span></div>
                                 </div>
                                 <div className="mm-bm">
-                                    <div className="mm-blv" style={{ color: "var(--mm-amber)" }}>Medium Risk</div>
-                                    <div className="mm-bds">High urgent load + 7 late-night emails. Set inbox boundaries after 9 pm.</div>
+                                    <div className="mm-blv" style={{ color: burnoutScore >= 70 ? "var(--mm-red)" : burnoutScore >= 40 ? "var(--mm-amber)" : "var(--mm-green)" }}>{burnoutScore >= 70 ? "High Risk" : burnoutScore >= 40 ? "Medium Risk" : "Low Risk"}</div>
+                                    <div className="mm-bds">{urgentCount > 0 ? `${urgentCount} urgent emails detected. ` : ""}{lateNightCount > 0 ? `${lateNightCount} late-night emails. Set inbox boundaries.` : "Healthy email habits detected."}</div>
                                 </div>
                             </div>
                             <div className="mm-bars">
-                                <div className="mm-br"><span className="mm-brl">Stress</span><div className="mm-brt"><div className="mm-brf" style={{ width: "62%", background: "linear-gradient(90deg,#fbbf24,#f87171)" }}></div></div><span className="mm-brn">62</span></div>
-                                <div className="mm-br"><span className="mm-brl">Productivity</span><div className="mm-brt"><div className="mm-brf" style={{ width: "74%", background: "linear-gradient(90deg,#7c3aed,#34d399)" }}></div></div><span className="mm-brn">74</span></div>
-                                <div className="mm-br"><span className="mm-brl">Late Night</span><div className="mm-brt"><div className="mm-brf" style={{ width: "47%", background: "linear-gradient(90deg,#a78bfa,#c084fc)" }}></div></div><span className="mm-brn">47</span></div>
-                                <div className="mm-br"><span className="mm-brl">Completion</span><div className="mm-brt"><div className="mm-brf" style={{ width: "82%", background: "linear-gradient(90deg,#34d399,#6ee7b7)" }}></div></div><span className="mm-brn">82</span></div>
+                                <div className="mm-br"><span className="mm-brl">Stress</span><div className="mm-brt"><div className="mm-brf" style={{ width: `${Math.min(100, urgentCount * 10 + lateNightCount * 8)}%`, background: "linear-gradient(90deg,#fbbf24,#f87171)" }}></div></div><span className="mm-brn">{Math.min(100, urgentCount * 10 + lateNightCount * 8)}</span></div>
+                                <div className="mm-br"><span className="mm-brl">Volume</span><div className="mm-brt"><div className="mm-brf" style={{ width: `${Math.min(100, inboxCount * 2)}%`, background: "linear-gradient(90deg,#7c3aed,#34d399)" }}></div></div><span className="mm-brn">{Math.min(100, inboxCount * 2)}</span></div>
+                                <div className="mm-br"><span className="mm-brl">Late Night</span><div className="mm-brt"><div className="mm-brf" style={{ width: `${Math.min(100, lateNightCount * 14)}%`, background: "linear-gradient(90deg,#a78bfa,#c084fc)" }}></div></div><span className="mm-brn">{Math.min(100, lateNightCount * 14)}</span></div>
+                                <div className="mm-br"><span className="mm-brl">Urgency</span><div className="mm-brt"><div className="mm-brf" style={{ width: `${Math.min(100, urgentCount * 12)}%`, background: "linear-gradient(90deg,#34d399,#6ee7b7)" }}></div></div><span className="mm-brn">{Math.min(100, urgentCount * 12)}</span></div>
                             </div>
                             <div className="mm-prodr">
-                                <div><div style={{ fontSize: "9.5px", color: "var(--mm-text3)", marginBottom: 2 }}>Productivity Rate</div><span className="mm-prodp">74%</span></div>
-                                <div style={{ textAlign: "right" }}><div style={{ fontSize: "9.5px", color: "var(--mm-text3)", marginBottom: 4 }}>Trend</div><span className="mm-trend mm-tu">↑ Increasing</span></div>
+                                <div><div style={{ fontSize: "9.5px", color: "var(--mm-text3)", marginBottom: 2 }}>Productivity Rate</div><span className="mm-prodp">{inboxCount > 0 ? Math.max(0, 100 - burnoutScore) : 0}%</span></div>
+                                <div style={{ textAlign: "right" }}><div style={{ fontSize: "9.5px", color: "var(--mm-text3)", marginBottom: 4 }}>Trend</div><span className="mm-trend mm-tu">{burnoutScore < 50 ? "↑ Healthy" : "↓ Declining"}</span></div>
                             </div>
                             <div style={{ marginTop: 12 }}>
                                 <div className="mm-pt" style={{ marginBottom: 7 }}>AI Recommendations</div>
@@ -538,13 +643,27 @@ grid-template-columns: 40% 60%;
                             </div>
                             <div className="mm-tadd"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>Add a task…</div>
                             <div className="mm-tscroll">
-                                <div className="mm-ti"><div className="mm-tpri mm-ph-c"></div><div className="mm-tchk"></div><div style={{ flex: 1 }}><div className="mm-ttxt">Join GWY PRECONF 2026 session NOW</div><div className="mm-tmeta">Today · Do Now</div></div><span className="mm-aich">AI</span></div>
-                                <div className="mm-ti"><div className="mm-tpri mm-ph-c"></div><div className="mm-tchk"></div><div style={{ flex: 1 }}><div className="mm-ttxt">Attend Generative AI Mastermind — 10 am</div><div className="mm-tmeta">Today · Zoom</div></div><span className="mm-aich">AI</span></div>
-                                <div className="mm-ti"><div className="mm-tpri mm-pm-c"></div><div className="mm-tchk"></div><div style={{ flex: 1 }}><div className="mm-ttxt">Confirm PM counselling session</div><div className="mm-tmeta">Tomorrow · Reminder</div></div><span className="mm-aich">AI</span></div>
-                                <div className="mm-ti"><div className="mm-tpri mm-pm-c"></div><div className="mm-tchk"></div><div style={{ flex: 1 }}><div className="mm-ttxt">Review security alert from Google</div><div className="mm-tmeta">Today · Important</div></div><span className="mm-aich">AI</span></div>
-                                <div className="mm-ti"><div className="mm-tpri mm-pl2-c"></div><div className="mm-tchk"></div><div style={{ flex: 1 }}><div className="mm-ttxt">Register for Naukri Campus Quiz</div><div className="mm-tmeta">This week · Naukri</div></div><span className="mm-aich">AI</span></div>
-                                <div className="mm-ti mm-done"><div className="mm-tpri mm-pl2-c"></div><div className="mm-tchk"><svg width="7" height="7" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3.5"><polyline points="20 6 9 17 4 12" /></svg></div><div style={{ flex: 1 }}><div className="mm-ttxt">Submit NLP Lab Assignment L19+L20</div><div className="mm-tmeta">Done · 27 Feb</div></div></div>
-                                <div className="mm-ti mm-done"><div className="mm-tpri mm-pl2-c"></div><div className="mm-tchk"><svg width="7" height="7" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3.5"><polyline points="20 6 9 17 4 12" /></svg></div><div style={{ flex: 1 }}><div className="mm-ttxt">Register for AI Mastermind event</div><div className="mm-tmeta">Done · 28 Feb</div></div></div>
+                                {emails.slice(0, 5).map((mail, i) => {
+                                    const text = ((mail.subject || "") + " " + (mail.snippet || "")).toLowerCase();
+                                    const isUrgent = text.includes("urgent") || text.includes("deadline") || text.includes("asap");
+                                    const hasMeeting = text.includes("meeting") || text.includes("zoom") || text.includes("schedule");
+                                    const priClass = isUrgent ? "mm-ph-c" : hasMeeting ? "mm-pm-c" : "mm-pl2-c";
+                                    const label = isUrgent ? "Urgent" : hasMeeting ? "Meeting" : "Review";
+                                    return (
+                                        <div key={mail.id || i} className="mm-ti" onClick={() => onNavigate("inbox")} style={{ cursor: "pointer" }}>
+                                            <div className={`mm-tpri ${priClass}`}></div>
+                                            <div className="mm-tchk"></div>
+                                            <div style={{ flex: 1 }}>
+                                                <div className="mm-ttxt">{mail.subject || "(No subject)"}</div>
+                                                <div className="mm-tmeta">{mail.date ? new Date(mail.date).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : ""} · {label}</div>
+                                            </div>
+                                            <span className="mm-aich">AI</span>
+                                        </div>
+                                    );
+                                })}
+                                {emails.length === 0 && !loadingEmails && (
+                                    <div style={{ padding: "12px 5px", color: "var(--mm-text3)", fontSize: 11 }}>No emails loaded yet. Tasks will appear here.</div>
+                                )}
                             </div>
                         </div>
                     </aside>

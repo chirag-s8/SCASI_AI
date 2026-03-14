@@ -24,12 +24,16 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
-    "@types/node": "^20.19.35",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@types/jest": "^30.0.0",
+    "@types/node": "^20.19.37",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "autoprefixer": "^10.4.27",
     "eslint": "^9",
     "eslint-config-next": "16.1.6",
+    "jest": "^30.3.0",
+    "jest-environment-jsdom": "^30.3.0",
     "postcss": "^8.5.8",
     "rimraf": "^5.0.10",
     "tailwindcss": "^3.4.19",

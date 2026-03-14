@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import {
     motion,
     useInView,
@@ -15,7 +15,7 @@ import {
     Brain, Shield, Clock, Zap, AlertTriangle,
     Gem, BarChart2, Bell, User, Flame,
     FileText, Briefcase, Activity, Lock,
-    MessageSquare, CheckCircle, TrendingUp,
+    MessageSquare, CheckCircle,
     LayoutGrid, Eye,
 } from "lucide-react";
 
@@ -360,14 +360,6 @@ function WaveUp({ fromColor = "#0f0b24", toColor = "#ffffff" }) {
 /* ════════════════════════════════════════════════════════════
    DESIGN ATOMS
 ════════════════════════════════════════════════════════════ */
-function GradText({ children }) {
-    return (
-        <span style={{ background: "linear-gradient(135deg,#7c3aed 0%,#a855f7 45%,#c084fc 85%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>
-            {children}
-        </span>
-    );
-}
-
 function Pill({ icon, text, color }) {
     return (
         <div style={{
@@ -754,8 +746,7 @@ function InboxSectionCard({ inView }) {
 
 function LiveBurnoutChart({ stress, workload, trend }) {
     const W = 320, H = 100, N = 14;
-    const [mounted, setMounted] = useState(false);
-    useEffect(() => { setMounted(true); }, []);
+    const [mounted] = useState(() => typeof window !== 'undefined');
 
     const gen = useCallback((s, w, tr) => {
         const base = s * 1.2, wm = w === "High" ? 1.3 : w === "Medium" ? 1 : 0.7;
@@ -773,13 +764,8 @@ function LiveBurnoutChart({ stress, workload, trend }) {
         });
     }, []);
 
-    const [pts, setPts] = useState(() => stableInit(stress, workload, trend));
-    const [key, setKey] = useState(0);
-    useEffect(() => {
-        if (!mounted) return;
-        setPts(gen(stress, workload, trend));
-        setKey(k => k + 1);
-    }, [stress, workload, trend, gen, mounted]);
+    const pts = useMemo(() => mounted ? gen(stress, workload, trend) : stableInit(stress, workload, trend), [stress, workload, trend, gen, stableInit, mounted]);
+    const key = useMemo(() => `${stress}-${workload}-${trend}`, [stress, workload, trend]);
 
     const mx = Math.max(...pts), mn = Math.min(...pts);
     const tx = (i) => (i / (N - 1)) * W;
@@ -1054,11 +1040,12 @@ function GeminiChat({ inView }) {
         if (!inView) return;
         const iv = setInterval(() => setQi(p => (p + 1) % qas.length), 4500);
         return () => clearInterval(iv);
-    }, [inView]);
+    }, [inView, qas.length]);
     useEffect(() => {
         setTyping(true); setTxt(""); let i = 0; const a = qas[qi].a;
         const t = setInterval(() => { setTxt(a.slice(0, i)); i++; if (i > a.length) { clearInterval(t); setTyping(false); } }, 18);
         return () => clearInterval(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [qi]);
     return (
         <div style={{
@@ -1314,11 +1301,10 @@ function HeroCyclingHeadline() {
             }}>
                 Engineered by AI. Refined for you.
             </span>
-            <span style={{
-                display: "block", fontSize: "clamp(13px,1.3vw,16px)", fontWeight: 400, lineHeight: 1.8,
+            <span style={{ display: "block", fontSize: "clamp(13px,1.3vw,16px)", fontWeight: 400, lineHeight: 1.8,
                 color: "#64748b", marginTop: 22, fontFamily: BODY, maxWidth: 420, letterSpacing: ".1px"
             }}>
-                Scasi's neural engine classifies priority, composes contextual replies, and surfaces critical actions — ensuring your highest-value work commands your undivided attention.
+                Scasi&apos;s neural engine classifies priority, composes contextual replies, and surfaces critical actions — ensuring your highest-value work commands your undivided attention.
             </span>
         </span>
     );
@@ -1472,13 +1458,24 @@ function ScasiFeaturesSectionInner() {
         [32, "Low", "Falling"], [50, "Medium", "Rising"], [92, "High", "Rising"],
     ];
     const [si, setSi] = useState(0);
-    useEffect(() => { const iv = setInterval(() => setSi(p => (p + 1) % STATES.length), 3800); return () => clearInterval(iv); }, []);
+    useEffect(() => { const iv = setInterval(() => setSi(p => (p + 1) % STATES.length), 3800); return () => clearInterval(iv); }, [STATES.length]);
     const [stress, workload, trend] = STATES[si];
     const sc = stress > 70 ? "#ef4444" : stress > 40 ? "#f97316" : "#22c55e";
     const sl = stress > 70 ? "Critical" : stress > 40 ? "Elevated" : "Nominal";
 
-    const refs = Array.from({ length: 9 }, () => useRef(null));
-    const inViews = refs.map(r => useInView(r, { once: true, margin: "-50px" }));
+    const ref0 = useRef(null); const ref1 = useRef(null); const ref2 = useRef(null);
+    const ref3 = useRef(null); const ref4 = useRef(null); const ref5 = useRef(null);
+    const ref6 = useRef(null); const ref7 = useRef(null); const ref8 = useRef(null);
+    const iv0 = useInView(ref0, { once: true, margin: "-50px" });
+    const iv1 = useInView(ref1, { once: true, margin: "-50px" });
+    const iv2 = useInView(ref2, { once: true, margin: "-50px" });
+    const iv3 = useInView(ref3, { once: true, margin: "-50px" });
+    const iv4 = useInView(ref4, { once: true, margin: "-50px" });
+    const iv5 = useInView(ref5, { once: true, margin: "-50px" });
+    const iv6 = useInView(ref6, { once: true, margin: "-50px" });
+    const iv7 = useInView(ref7, { once: true, margin: "-50px" });
+    const iv8 = useInView(ref8, { once: true, margin: "-50px" });
+    const inViews = [iv0, iv1, iv2, iv3, iv4, iv5, iv6, iv7, iv8];
 
     const base = {
         background: "linear-gradient(145deg,#0e0b28 0%,#0b0920 100%)",
@@ -1495,7 +1492,7 @@ function ScasiFeaturesSectionInner() {
 
                 {/* ── CARD 1: Cognitive Wellbeing ── */}
                 <StackCard idx={1}>
-                    <motion.div ref={refs[0]} className="fc"
+                    <motion.div ref={ref0} className="fc"
                         initial={{ opacity: 0, y: 60 }} animate={{ opacity: inViews[0] ? 1 : 0, y: inViews[0] ? 0 : 60 }}
                         transition={{ duration: .95, ease: [.23, 1, .32, 1] }}
                         style={{ ...base, padding: "36px 36px 28px" }}>
@@ -1513,7 +1510,7 @@ function ScasiFeaturesSectionInner() {
                                     <span style={{ background: "linear-gradient(135deg,#f97316,#ef4444)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>Stress Intelligence & Recovery</span>
                                 </h2>
                                 <p style={{ fontFamily: BODY, fontSize: 12, color: "#475569", lineHeight: 1.75 }}>
-                                    Scasi's neural monitoring system analyses your communication patterns in real time, detecting late-hour pressure spikes and cognitive overload before burnout takes hold.
+                                    Scasi&apos;s neural monitoring system analyses your communication patterns in real time, detecting late-hour pressure spikes and cognitive overload before burnout takes hold.
                                 </p>
                             </div>
                             <motion.div animate={{ boxShadow: ["0 0 0px rgba(239,68,68,0)", "0 0 20px rgba(239,68,68,.4)", "0 0 0px rgba(239,68,68,0)"] }} transition={{ duration: 2, repeat: Infinity }}
@@ -1580,7 +1577,7 @@ function ScasiFeaturesSectionInner() {
 
                 {/* ── CARD 2: Priority Scoring ── */}
                 <StackCard idx={2}>
-                    <div ref={refs[1]} style={{ display: "grid", gridTemplateColumns: "220px 1fr", gap: 20 }}>
+                    <div ref={ref1} style={{ display: "grid", gridTemplateColumns: "220px 1fr", gap: 20 }}>
                         <motion.div className="fc" initial={{ opacity: 0, scale: .9 }} animate={{ opacity: inViews[1] ? 1 : 0, scale: inViews[1] ? 1 : .9 }} transition={{ duration: .8, ease: [.23, 1, .32, 1] }}
                             style={{ ...base, display: "flex", alignItems: "center", justifyContent: "center", padding: "36px 20px" }}>
                             <div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse at center,rgba(124,58,237,.2) 0%,transparent 70%)", pointerEvents: "none" }} />
@@ -1608,7 +1605,7 @@ function ScasiFeaturesSectionInner() {
 
                 {/* ── CARD 3: Task Extraction ── */}
                 <StackCard idx={3}>
-                    <motion.div ref={refs[2]} className="fc"
+                    <motion.div ref={ref2} className="fc"
                         initial={{ opacity: 0, y: 36 }} animate={{ opacity: inViews[2] ? 1 : 0, y: inViews[2] ? 0 : 36 }}
                         transition={{ duration: .85, ease: [.23, 1, .32, 1] }}
                         style={{ ...base, padding: "34px", display: "flex", gap: 34, alignItems: "center" }}>
@@ -1634,14 +1631,14 @@ function ScasiFeaturesSectionInner() {
 
                 {/* ── CARD 4: Live Inbox Preview ── */}
                 <StackCard idx={4}>
-                    <div ref={refs[3]}>
+                    <div ref={ref3}>
                         <InboxSectionCard inView={inViews[3]} />
                     </div>
                 </StackCard>
 
                 {/* ── CARD 5: Email Overload ── */}
                 <StackCard idx={5}>
-                    <motion.div ref={refs[4]} className="fc"
+                    <motion.div ref={ref4} className="fc"
                         initial={{ opacity: 0, y: 36 }} animate={{ opacity: inViews[4] ? 1 : 0, y: inViews[4] ? 0 : 36 }}
                         transition={{ duration: .85, ease: [.23, 1, .32, 1] }}
                         style={{ ...base, padding: "34px", display: "flex", gap: 34, alignItems: "center" }}>
@@ -1681,14 +1678,14 @@ function ScasiFeaturesSectionInner() {
 
                 {/* ── CARD 6: Gemini AI ── */}
                 <StackCard idx={6}>
-                    <div ref={refs[5]}>
+                    <div ref={ref5}>
                         <GeminiChat inView={inViews[5]} />
                     </div>
                 </StackCard>
 
                 {/* ── CARD 7: Stats ── */}
                 <StackCard idx={7}>
-                    <div ref={refs[6]} style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 20 }}>
+                    <div ref={ref6} style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 20 }}>
                         <StatCard icon={<Shield size={32} color="#ef4444" />} num={2847} label="Malicious Emails Intercepted This Month" color="#ef4444" sub="+18% month-over-month" delay={0} go={inViews[6]} />
                         <StatCard icon={<Clock size={32} color="#7c3aed" />} num={94} label="Critical Deadlines Automatically Surfaced" color="#7c3aed" sub="98.7% detection accuracy" delay={.12} go={inViews[6]} />
                         <StatCard icon={<Zap size={32} color="#06b6d4" />} num={1203} label="Contextual AI Replies Composed" color="#06b6d4" sub="+31% this week" delay={.24} go={inViews[6]} />
@@ -1697,7 +1694,7 @@ function ScasiFeaturesSectionInner() {
 
                 {/* ── CARD 8: Deadline Detection ── */}
                 <StackCard idx={8}>
-                    <motion.div ref={refs[7]} className="fc"
+                    <motion.div ref={ref7} className="fc"
                         initial={{ opacity: 0, y: 30 }} animate={{ opacity: inViews[7] ? 1 : 0, y: inViews[7] ? 0 : 30 }}
                         transition={{ duration: .8, ease: [.23, 1, .32, 1] }}
                         style={{ ...base, padding: "30px" }}>
@@ -1726,7 +1723,7 @@ function ScasiFeaturesSectionInner() {
 
                 {/* ── CARD 9: Compare Table ── */}
                 <StackCard idx={9}>
-                    <motion.div ref={refs[8]}
+                    <motion.div ref={ref8}
                         initial={{ opacity: 0, y: 36 }} animate={{ opacity: inViews[8] ? 1 : 0, y: inViews[8] ? 0 : 36 }}
                         transition={{ duration: .85, ease: [.23, 1, .32, 1] }}>
                         <div style={{ textAlign: "center", marginBottom: 24 }}>

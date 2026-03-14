@@ -65,7 +65,7 @@ export async function POST(req) {
         const encodedMessage = encodeBase64(rawMessage);
 
         // ✅ Send Reply
-        const sent = await gmail.users.messages.send({
+        const _sent = await gmail.users.messages.send({
             userId: "me",
             requestBody: {
                 raw: encodedMessage,

@@ -4,41 +4,122 @@
  */
 
 import { z } from 'zod';
-import type { AgentName } from '../_shared';
+
+// ---------------------------------------------------------------------------
+// Workflow enum
+// ---------------------------------------------------------------------------
+
+export const WorkflowType = z.enum([
+    'handle_for_me',
+    'sort_inbox',
+    'reply_to',
+    'general',
+]);
+export type WorkflowType = z.infer<typeof WorkflowType>;
 
 // ---------------------------------------------------------------------------
 // Request
 // ---------------------------------------------------------------------------
 
 export const OrchestratorRequestSchema = z.object({
-    /** Raw message from the user (voice transcript OR typed text) */
     userMessage: z.string().min(1).max(10_000),
-
-    /** Optionally force a specific agent pipeline; omit to let orchestrator decide */
-    pipeline: z.array(z.enum(['rag', 'nlp', 'testing', 'voice', 'orchestrator'])).optional(),
+    sessionId: z.string().uuid().optional(),
+    emailContext: z.object({
+        gmailId: z.string(),
+        subject: z.string(),
+        from: z.string(),
+        snippet: z.string(),
+        body: z.string().optional(),
+    }).optional(),
 });
 export type OrchestratorRequest = z.infer<typeof OrchestratorRequestSchema>;
+
+// ---------------------------------------------------------------------------
+// ReAct step
+// ---------------------------------------------------------------------------
+
+export interface ReActStep {
+    thought: string;
+    tool?: string;
+    toolInput?: Record<string, unknown>;
+    observation?: unknown;
+    answer?: string;
+}
+
+// ---------------------------------------------------------------------------
+// Agent result trace
+// ---------------------------------------------------------------------------
+
+export interface AgentResult {
+    agentName: string;
+    completedAt: string;
+    durationMs: number;
+    output: unknown;
+}
 
 // ---------------------------------------------------------------------------
 // Response
 // ---------------------------------------------------------------------------
 
-export interface AgentResult {
-    agentName: AgentName;
-    /** ISO 8601 timestamp when this agent finished */
-    completedAt: string;
-    /** Duration in milliseconds */
-    durationMs: number;
-    output: unknown;
-}
-
 export interface OrchestratorResponse {
-    /** Final synthesised answer shown to the user */
     answer: string;
-
-    /** Per-agent execution trace for debugging / observability */
+    workflow: WorkflowType;
+    steps: ReActStep[];
     agentTrace: AgentResult[];
-
-    /** Total wall-clock time across all agents (ms) */
     totalDurationMs: number;
+    sessionId?: string;
 }
+
+// ---------------------------------------------------------------------------
+// Intent detection output
+// ---------------------------------------------------------------------------
+
+export const IntentSchema = z.object({
+    workflow: WorkflowType,
+    target: z.string().optional(),
+    reasoning: z.string(),
+});
+export type Intent = z.infer<typeof IntentSchema>;
+
+// ---------------------------------------------------------------------------
+// SSE Chat stream events
+// ---------------------------------------------------------------------------
+
+export interface ChatEventIntent {
+    type: 'intent';
+    workflow: WorkflowType;
+    reasoning: string;
+}
+
+export interface ChatEventStep {
+    type: 'step';
+    agentName: string;
+    status: 'running' | 'completed' | 'failed';
+    durationMs?: number;
+    output?: unknown;
+}
+
+export interface ChatEventToken {
+    type: 'token';
+    text: string;
+}
+
+export interface ChatEventDone {
+    type: 'done';
+    sessionId?: string;
+    totalDurationMs: number;
+    workflow: WorkflowType;
+}
+
+export interface ChatEventError {
+    type: 'error';
+    code: string;
+    message: string;
+}
+
+export type ChatStreamEvent =
+    | ChatEventIntent
+    | ChatEventStep
+    | ChatEventToken
+    | ChatEventDone
+    | ChatEventError;

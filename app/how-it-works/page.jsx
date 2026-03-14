@@ -185,9 +185,34 @@ const processSteps = [
     { num: "01", Ic: Icon.Lock, title: "Connect with Google OAuth 2.0", desc: "One click connects your Gmail securely. MailMind uses OAuth 2.0 — your password is never seen or stored. We read, send, and modify emails only when you ask.", details: ["Gmail full OAuth 2.0", "Token auto-refresh", "CSRF protected", "No password storage"] },
     { num: "02", Ic: Icon.Inbox, title: "Your Inbox Loads Instantly", desc: "Emails appear in a clean, paginated list. Avatars, snippets, sender names — all rendered from Gmail's API in real-time. Threads are grouped, folders are smart.", details: ["Thread grouping", "Real-time refresh", "Paginated loading", "Inbox · Starred · Snoozed · Archive"] },
     { num: "03", Ic: Icon.Bot, title: "AI Analyses Every Email", desc: "8 AI models (powered by Qwen 2.5 Coder 32B via OpenRouter) process each email on-demand. Nothing runs until you need it — your data is never batch-processed or stored.", details: ["Priority scoring (1–100)", "Smart categorisation", "Spam neural shield", "Deadline extraction"] },
-    { num: "04", Ic: Icon.Zap, title: "You Act — or Let AI Handle It", desc: 'MailMind\'s agentic "Handle For Me" runs a 5-step pipeline — analyse, create task, check calendar, draft reply — and presents every action for your approval before sending.', details: ["AI-drafted replies", "Handle For Me agent", "Smart to-do titles", "Never sends without approval"] },
+    { num: "04", Ic: Icon.Zap, title: "You Act — or Let AI Handle It", desc: "MailMind\u2019s agentic \u201CHandle For Me\u201D runs a 5-step pipeline \u2014 analyse, create task, check calendar, draft reply \u2014 and presents every action for your approval before sending.", details: ["AI-drafted replies", "Handle For Me agent", "Smart to-do titles", "Never sends without approval"] },
     { num: "05", Ic: Icon.BarChart, title: "Weekly Intelligence Report", desc: "Every Sunday, MailMind generates a burnout risk score, productivity rate, stress analysis, and personalised recommendations — turning email data into wellbeing insights.", details: ["Burnout score (0–100)", "Stress level detection", "Late-night tracking", "Productivity trend analysis"] },
 ];
+
+function ProcessStepItem({ step, i }) {
+    const ref = useRef(null); const inView = useInView(ref, { once: true, margin: "-80px" });
+    return (
+        <motion.div ref={ref} initial={{ opacity: 0, x: -50 }} animate={{ opacity: inView ? 1 : 0, x: inView ? 0 : -50 }} transition={{ duration: .85, delay: i * .1, ease: [.23, 1, .32, 1] }} style={{ display: "flex", gap: 36, marginBottom: 60, position: "relative" }}>
+            <div style={{ flexShrink: 0, position: "relative", zIndex: 2 }}>
+                <motion.div animate={{ boxShadow: ["0 0 0 0 rgba(167,139,250,.35)", "0 0 0 18px rgba(167,139,250,0)"] }} transition={{ duration: 2.5, repeat: Infinity, delay: i * .5 }}
+                    style={{ width: 88, height: 88, borderRadius: "50%", background: "linear-gradient(135deg,rgba(167,139,250,.15),rgba(167,139,250,.06))", border: "2px solid rgba(167,139,250,.25)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", boxShadow: "0 0 30px rgba(167,139,250,.18)" }}>
+                    <step.Ic style={{ width: 26, height: 26, color: "rgba(255,255,255,.8)" }} />
+                    <span style={{ fontFamily: BODY, fontSize: 9, fontWeight: 800, color: "#a78bfa", letterSpacing: 1, marginTop: 4 }}>{step.num}</span>
+                </motion.div>
+            </div>
+            <motion.div whileHover={{ y: -4, borderColor: "rgba(167,139,250,.3)" }} style={{ flex: 1, background: "linear-gradient(145deg,#0e0b28,#0b0920)", border: "1px solid rgba(255,255,255,.07)", borderRadius: 20, padding: "28px 30px", boxShadow: "0 12px 40px rgba(0,0,0,.4),inset 0 1px 0 rgba(255,255,255,.04)", transition: "border-color .3s,transform .3s", overflow: "hidden", position: "relative" }}>
+                <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 2, background: "linear-gradient(90deg,transparent,rgba(167,139,250,.55),transparent)" }} />
+                <h3 style={{ fontFamily: DISPLAY, fontWeight: 800, fontSize: 22, color: "#e2e8f0", marginBottom: 10, lineHeight: 1.25 }}>{step.title}</h3>
+                <p style={{ fontFamily: BODY, fontSize: 13, color: "#64748b", lineHeight: 1.78, marginBottom: 20 }}>{step.desc}</p>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                    {step.details.map((d, j) => (
+                        <span key={j} style={{ fontFamily: BODY, fontSize: 10, fontWeight: 700, background: "rgba(167,139,250,.1)", border: "1px solid rgba(167,139,250,.2)", color: "#c4b5fd", borderRadius: 100, padding: "4px 12px", letterSpacing: .3 }}>✓ {d}</span>
+                    ))}
+                </div>
+            </motion.div>
+        </motion.div>
+    );
+}
 
 function ProcessTimeline() {
     return (
@@ -203,30 +228,9 @@ function ProcessTimeline() {
                 </motion.div>
                 <div style={{ position: "relative" }}>
                     <div style={{ position: "absolute", left: 44, top: 0, bottom: 0, width: 2, background: "linear-gradient(180deg,transparent,rgba(124,58,237,.4) 10%,rgba(168,85,247,.5) 50%,rgba(124,58,237,.3) 90%,transparent)", zIndex: 1 }} />
-                    {processSteps.map((step, i) => {
-                        const ref = useRef(null); const inView = useInView(ref, { once: true, margin: "-80px" });
-                        return (
-                            <motion.div key={i} ref={ref} initial={{ opacity: 0, x: -50 }} animate={{ opacity: inView ? 1 : 0, x: inView ? 0 : -50 }} transition={{ duration: .85, delay: i * .1, ease: [.23, 1, .32, 1] }} style={{ display: "flex", gap: 36, marginBottom: 60, position: "relative" }}>
-                                <div style={{ flexShrink: 0, position: "relative", zIndex: 2 }}>
-                                    <motion.div animate={{ boxShadow: ["0 0 0 0 rgba(167,139,250,.35)", "0 0 0 18px rgba(167,139,250,0)"] }} transition={{ duration: 2.5, repeat: Infinity, delay: i * .5 }}
-                                        style={{ width: 88, height: 88, borderRadius: "50%", background: "linear-gradient(135deg,rgba(167,139,250,.15),rgba(167,139,250,.06))", border: "2px solid rgba(167,139,250,.25)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", boxShadow: "0 0 30px rgba(167,139,250,.18)" }}>
-                                        <step.Ic style={{ width: 26, height: 26, color: "rgba(255,255,255,.8)" }} />
-                                        <span style={{ fontFamily: BODY, fontSize: 9, fontWeight: 800, color: "#a78bfa", letterSpacing: 1, marginTop: 4 }}>{step.num}</span>
-                                    </motion.div>
-                                </div>
-                                <motion.div whileHover={{ y: -4, borderColor: "rgba(167,139,250,.3)" }} style={{ flex: 1, background: "linear-gradient(145deg,#0e0b28,#0b0920)", border: "1px solid rgba(255,255,255,.07)", borderRadius: 20, padding: "28px 30px", boxShadow: "0 12px 40px rgba(0,0,0,.4),inset 0 1px 0 rgba(255,255,255,.04)", transition: "border-color .3s,transform .3s", overflow: "hidden", position: "relative" }}>
-                                    <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 2, background: "linear-gradient(90deg,transparent,rgba(167,139,250,.55),transparent)" }} />
-                                    <h3 style={{ fontFamily: DISPLAY, fontWeight: 800, fontSize: 22, color: "#e2e8f0", marginBottom: 10, lineHeight: 1.25 }}>{step.title}</h3>
-                                    <p style={{ fontFamily: BODY, fontSize: 13, color: "#64748b", lineHeight: 1.78, marginBottom: 20 }}>{step.desc}</p>
-                                    <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-                                        {step.details.map((d, j) => (
-                                            <span key={j} style={{ fontFamily: BODY, fontSize: 10, fontWeight: 700, background: "rgba(167,139,250,.1)", border: "1px solid rgba(167,139,250,.2)", color: "#c4b5fd", borderRadius: 100, padding: "4px 12px", letterSpacing: .3 }}>✓ {d}</span>
-                                        ))}
-                                    </div>
-                                </motion.div>
-                            </motion.div>
-                        );
-                    })}
+                    {processSteps.map((step, i) => (
+                        <ProcessStepItem key={i} step={step} i={i} />
+                    ))}
                 </div>
             </div>
         </section>
@@ -295,7 +299,7 @@ const aiFeatures = [
                 <div style={{ fontFamily: BODY, fontSize: 9, color: "#a78bfa", fontWeight: 800, marginBottom: 6, letterSpacing: .8, display: "flex", alignItems: "center", gap: 5 }}>
                     <Icon.Sparkle style={{ width: 9, height: 9, color: "#a78bfa" }} /> AI DRAFT
                 </div>
-                <p style={{ fontFamily: BODY, fontSize: 11, color: "#94a3b8", lineHeight: 1.7, margin: 0 }}>"Hi Sarah, thanks for reaching out. I've reviewed the proposal and I'm happy to schedule a call. Does Thursday at 3pm work for you?"</p>
+                <p style={{ fontFamily: BODY, fontSize: 11, color: "#94a3b8", lineHeight: 1.7, margin: 0 }}>&quot;Hi Sarah, thanks for reaching out. I&apos;ve reviewed the proposal and I&apos;m happy to schedule a call. Does Thursday at 3pm work for you?&quot;</p>
             </div>
         </div>,
     },
@@ -340,6 +344,26 @@ const aiFeatures = [
     },
 ];
 
+function AIFeatureCard({ f, i }) {
+    const ref = useRef(null); const inView = useInView(ref, { once: true, margin: "-60px" });
+    return (
+        <motion.div ref={ref} initial={{ opacity: 0, y: 40, scale: .97 }} animate={{ opacity: inView ? 1 : 0, y: inView ? 0 : 40, scale: inView ? 1 : .97 }} transition={{ delay: i * .07, duration: .75, ease: [.23, 1, .32, 1] }} whileHover={{ y: -8, boxShadow: "0 30px 80px rgba(124,58,237,.18)" }}
+            style={{ background: "linear-gradient(145deg,#0e0b28,#0b0920)", border: "1px solid rgba(255,255,255,.07)", borderRadius: 22, padding: "26px 24px", boxShadow: "0 12px 40px rgba(0,0,0,.4),inset 0 1px 0 rgba(255,255,255,.04)", position: "relative", overflow: "hidden", transition: "transform .3s,box-shadow .3s" }}>
+            <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 2, background: "linear-gradient(90deg,transparent,rgba(167,139,250,.55),transparent)" }} />
+            <div style={{ position: "absolute", top: -30, right: -30, width: 120, height: 120, borderRadius: "50%", background: "radial-gradient(ellipse,rgba(124,58,237,.12) 0%,transparent 65%)", pointerEvents: "none" }} />
+            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 10 }}>
+                <IBox icon={f.Ic} size={42} br={12} />
+                <div>
+                    <div style={{ fontFamily: BODY, fontSize: 14, fontWeight: 800, color: "#e2e8f0" }}>{f.title}</div>
+                    <div style={{ fontFamily: BODY, fontSize: 10, color: "#a78bfa", fontWeight: 700, letterSpacing: .4 }}>{f.subtitle}</div>
+                </div>
+            </div>
+            <p style={{ fontFamily: BODY, fontSize: 12, color: "#64748b", lineHeight: 1.72, marginBottom: 0 }}>{f.desc}</p>
+            {f.visual}
+        </motion.div>
+    );
+}
+
 function AIFeaturesGrid() {
     return (
         <section style={{ position: "relative", overflow: "hidden", background: "#ffffff", padding: "90px 40px 80px" }}>
@@ -351,25 +375,7 @@ function AIFeaturesGrid() {
                     <p style={{ fontFamily: BODY, fontSize: 15, color: "#64748b", maxWidth: 520, margin: "0 auto" }}>Each AI capability runs on-demand. Your emails stay private — nothing is stored, nothing is trained on.</p>
                 </motion.div>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(300px,1fr))", gap: 22 }}>
-                    {aiFeatures.map((f, i) => {
-                        const ref = useRef(null); const inView = useInView(ref, { once: true, margin: "-60px" });
-                        return (
-                            <motion.div key={i} ref={ref} initial={{ opacity: 0, y: 40, scale: .97 }} animate={{ opacity: inView ? 1 : 0, y: inView ? 0 : 40, scale: inView ? 1 : .97 }} transition={{ delay: i * .07, duration: .75, ease: [.23, 1, .32, 1] }} whileHover={{ y: -8, boxShadow: "0 30px 80px rgba(124,58,237,.18)" }}
-                                style={{ background: "linear-gradient(145deg,#0e0b28,#0b0920)", border: "1px solid rgba(255,255,255,.07)", borderRadius: 22, padding: "26px 24px", boxShadow: "0 12px 40px rgba(0,0,0,.4),inset 0 1px 0 rgba(255,255,255,.04)", position: "relative", overflow: "hidden", transition: "transform .3s,box-shadow .3s" }}>
-                                <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 2, background: "linear-gradient(90deg,transparent,rgba(167,139,250,.55),transparent)" }} />
-                                <div style={{ position: "absolute", top: -30, right: -30, width: 120, height: 120, borderRadius: "50%", background: "radial-gradient(ellipse,rgba(124,58,237,.12) 0%,transparent 65%)", pointerEvents: "none" }} />
-                                <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 10 }}>
-                                    <IBox icon={f.Ic} size={42} br={12} />
-                                    <div>
-                                        <div style={{ fontFamily: BODY, fontSize: 14, fontWeight: 800, color: "#e2e8f0" }}>{f.title}</div>
-                                        <div style={{ fontFamily: BODY, fontSize: 10, color: "#a78bfa", fontWeight: 700, letterSpacing: .4 }}>{f.subtitle}</div>
-                                    </div>
-                                </div>
-                                <p style={{ fontFamily: BODY, fontSize: 12, color: "#64748b", lineHeight: 1.72, marginBottom: 0 }}>{f.desc}</p>
-                                {f.visual}
-                            </motion.div>
-                        );
-                    })}
+                    {aiFeatures.map((f, i) => <AIFeatureCard key={i} f={f} i={i} />)}
                 </div>
             </div>
         </section>
@@ -399,7 +405,7 @@ function PowerSections() {
                         <div style={{ position: "absolute", top: -40, right: -40, width: 160, height: 160, borderRadius: "50%", background: "radial-gradient(ellipse,rgba(167,139,250,.1) 0%,transparent 65%)" }} />
                         <IBox icon={Icon.Focus} size={48} br={14} bg="rgba(167,139,250,.12)" />
                         <h3 style={{ fontFamily: DISPLAY, fontWeight: 800, fontSize: 26, color: "#e2e8f0", margin: "16px 0 10px" }}>Focus Mode</h3>
-                        <p style={{ fontFamily: BODY, fontSize: 13, color: "#64748b", lineHeight: 1.75, marginBottom: 24 }}>One click hides every non-urgent email. Only items marked "today", "urgent", or "ASAP" appear — numbered, full-screen, ready to be cleared one by one.</p>
+                        <p style={{ fontFamily: BODY, fontSize: 13, color: "#64748b", lineHeight: 1.75, marginBottom: 24 }}>One click hides every non-urgent email. Only items marked &quot;today&quot;, &quot;urgent&quot;, or &quot;ASAP&quot; appear — numbered, full-screen, ready to be cleared one by one.</p>
                         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                             {[{ num: "#1", title: "Submit Q2 Report", badge: "High", deadline: "Today" }, { num: "#2", title: "Interview: Google 3pm", badge: "Med", deadline: "Today" }, { num: "#3", title: "Confirm attendance", badge: "Low", deadline: "Tonight" }].map((t, i) => (
                                 <motion.div key={i} initial={{ opacity: 0, x: 20 }} animate={{ opacity: focusInView ? 1 : 0, x: focusInView ? 0 : 20 }} transition={{ delay: .3 + i * .12 }}
@@ -463,7 +469,7 @@ const apiEndpoints = [
 const techPills = [{ Ic: Icon.Code, label: "Next.js 16.1.2" }, { Ic: Icon.Globe, label: "React 19.2" }, { Ic: Icon.Layers, label: "Tailwind CSS" }, { Ic: Icon.Lock, label: "NextAuth.js" }, { Ic: Icon.Mail, label: "Gmail API" }, { Ic: Icon.Bot, label: "Qwen 2.5 Coder" }, { Ic: Icon.Server, label: "OpenRouter" }, { Ic: Icon.Database, label: "TypeScript" }];
 
 function TechSection() {
-    const [hovered, setHovered] = useState<number | null>(null);
+    const [hovered, setHovered] = useState(null);
     return (
         <section style={{ position: "relative", overflow: "hidden", background: "#ffffff", padding: "90px 40px 80px" }}>
             <NerveCanvas />
@@ -516,6 +522,19 @@ const securityPillars = [
     { Ic: Icon.Database, title: "Local Caching Only", desc: "Priority scores and AI results are cached client-side — never uploaded to our servers." },
 ];
 
+function SecurityPillarCard({ p, i }) {
+    const ref = useRef(null); const inView = useInView(ref, { once: true });
+    return (
+        <motion.div ref={ref} initial={{ opacity: 0, y: 30, scale: .96 }} animate={{ opacity: inView ? 1 : 0, y: inView ? 0 : 30, scale: inView ? 1 : .96 }} transition={{ delay: i * .09, duration: .75 }} whileHover={{ y: -6, borderColor: "rgba(167,139,250,.28)" }}
+            style={{ background: "linear-gradient(145deg,#0e0b28,#0b0920)", border: "1px solid rgba(255,255,255,.07)", borderRadius: 20, padding: "26px 24px", boxShadow: "0 10px 30px rgba(0,0,0,.35)", transition: "border-color .3s,transform .3s", position: "relative", overflow: "hidden" }}>
+            <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 2, background: "linear-gradient(90deg,transparent,rgba(167,139,250,.45),transparent)" }} />
+            <IBox icon={p.Ic} size={40} br={11} bg="rgba(167,139,250,.1)" />
+            <div style={{ fontFamily: BODY, fontSize: 14, fontWeight: 800, color: "#e2e8f0", margin: "12px 0 8px" }}>{p.title}</div>
+            <p style={{ fontFamily: BODY, fontSize: 12, color: "#64748b", lineHeight: 1.7, margin: 0 }}>{p.desc}</p>
+        </motion.div>
+    );
+}
+
 function SecuritySection() {
     return (
         <section style={{ position: "relative", overflow: "hidden", background: "#0d0922", padding: "90px 40px 100px" }}>
@@ -528,18 +547,7 @@ function SecuritySection() {
                     <p style={{ fontFamily: BODY, fontSize: 14, color: "#64748b", maxWidth: 480, margin: "0 auto" }}>Built with a privacy-first architecture. Your emails are processed, never stored.</p>
                 </motion.div>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 20 }}>
-                    {securityPillars.map((p, i) => {
-                        const ref = useRef(null); const inView = useInView(ref, { once: true });
-                        return (
-                            <motion.div key={i} ref={ref} initial={{ opacity: 0, y: 30, scale: .96 }} animate={{ opacity: inView ? 1 : 0, y: inView ? 0 : 30, scale: inView ? 1 : .96 }} transition={{ delay: i * .09, duration: .75 }} whileHover={{ y: -6, borderColor: "rgba(167,139,250,.28)" }}
-                                style={{ background: "linear-gradient(145deg,#0e0b28,#0b0920)", border: "1px solid rgba(255,255,255,.07)", borderRadius: 20, padding: "26px 24px", boxShadow: "0 10px 30px rgba(0,0,0,.35)", transition: "border-color .3s,transform .3s", position: "relative", overflow: "hidden" }}>
-                                <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 2, background: "linear-gradient(90deg,transparent,rgba(167,139,250,.45),transparent)" }} />
-                                <IBox icon={p.Ic} size={40} br={11} bg="rgba(167,139,250,.1)" />
-                                <div style={{ fontFamily: BODY, fontSize: 14, fontWeight: 800, color: "#e2e8f0", margin: "12px 0 8px" }}>{p.title}</div>
-                                <p style={{ fontFamily: BODY, fontSize: 12, color: "#64748b", lineHeight: 1.7, margin: 0 }}>{p.desc}</p>
-                            </motion.div>
-                        );
-                    })}
+                    {securityPillars.map((p, i) => <SecurityPillarCard key={i} p={p} i={i} />)}
                 </div>
             </div>
         </section>
@@ -634,7 +642,7 @@ function FinalCTA() {
                             <motion.button whileHover={{ scale: 1.05, boxShadow: "0 20px 60px rgba(124,58,237,.55)" }} whileTap={{ scale: .97 }}
                                 onClick={() => signIn("google", { callbackUrl: "/" })}
                                 style={{ background: "linear-gradient(135deg,#7c3aed,#a855f7)", border: "none", borderRadius: 100, padding: "15px 40px", color: "white", fontWeight: 800, fontSize: 15, fontFamily: BODY, boxShadow: "0 8px 32px rgba(124,58,237,.4)", cursor: "pointer", letterSpacing: .3, display: "flex", alignItems: "center", gap: 8 }}>
-                                Connect Gmail — it's free
+                                Connect Gmail — it&apos;s free
                                 <Icon.ArrowRight style={{ width: 16, height: 16, color: "white" }} />
                             </motion.button>
                             <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: .97 }}

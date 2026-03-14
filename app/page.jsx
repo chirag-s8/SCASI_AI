@@ -170,8 +170,7 @@ function MailLoadingScreen({ onDone }) {
       }
     }, 2200);
     return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);  // ← intentionally empty: do NOT add onDone here or it loops
+  }, []);
 
   return (
     <div style={{
@@ -298,18 +297,21 @@ export default function Home() {
 
   useEffect(() => {
     console.log("SESSION:", session);
+    if (session?.error === "RefreshAccessTokenError") {
+      console.error("Token refresh failed — signing out");
+      signOut({ callbackUrl: "/" });
+    }
   }, [session]);
 
   // ── view state to control which screen is shown ──
   const [appView, setAppView] = useState("landing");
-  // ── which folder to open when inbox loads ──
-  const [initialFolder, setInitialFolder] = useState("inbox");
   // Track if we've shown the loading animation
   const [hasShownLoading, setHasShownLoading] = useState(false);
 
   // When session arrives switch from landing → loading animation
   useEffect(() => {
     if (session && appView === "landing" && !hasShownLoading) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional state machine transition
       setAppView("loading");
       setHasShownLoading(true);
     }
@@ -327,17 +329,9 @@ export default function Home() {
   };
 
   const [hoverFile, setHoverFile] = useState(null);
-  const [showProfile, setShowProfile] = useState(false);
-  // 🕒 Current Date & Time
-  const [currentTime, setCurrentTime] = useState(new Date());
-  const [mounted, setMounted] = useState(false);
   const [geminiQuestion, setGeminiQuestion] = useState("");
   const [geminiReply, setGeminiReply] = useState("");
   const [loadingGemini, setLoadingGemini] = useState(false);
-  const [activePage, setActivePage] = useState("overview");
-  const [activeView, setActiveView] = useState("dashboard");
-
-  const [hoveredBtn, setHoveredBtn] = useState(null);
 
   // 🔔 Notification Count
   const [newMailCount, setNewMailCount] = useState(0);
@@ -354,49 +348,31 @@ export default function Home() {
   const [loadingReply, setLoadingReply] = useState(false);
   const [editableReply, setEditableReply] = useState("");
   const [copied, setCopied] = useState(false);
-  const [sending, setSending] = useState(false);
   const [aiPriorityMap, setAiPriorityMap] = useState({});
+  const [handleForMeResult, setHandleForMeResult] = useState("");
+  const [loadingHandleForMe, setLoadingHandleForMe] = useState(false);
   // ⭐ Starred Emails
-  const [starredIds, setStarredIds] = useState([]);
-  // ✅ Load Starred Emails from localStorage on startup
-  useEffect(() => {
-    const savedStarred = localStorage.getItem("starredIds");
-    if (savedStarred) {
-      setStarredIds(JSON.parse(savedStarred));
-    }
-  }, []);
+  const [starredIds, setStarredIds] = useState(() => {
+    if (typeof window === "undefined") return [];
+    const saved = localStorage.getItem("starredIds");
+    return saved ? JSON.parse(saved) : [];
+  });
 
   // ⏳ Snoozed Emails (hidden temporarily)
-  const [snoozedIds, setSnoozedIds] = useState([]);
-  // ✅ Load Snoozed Emails from localStorage on startup
-  useEffect(() => {
-    const savedSnoozed = localStorage.getItem("snoozedIds");
-    if (savedSnoozed) {
-      setSnoozedIds(JSON.parse(savedSnoozed));
-    }
-  }, []);
+  const [snoozedIds, setSnoozedIds] = useState(() => {
+    if (typeof window === "undefined") return [];
+    const saved = localStorage.getItem("snoozedIds");
+    return saved ? JSON.parse(saved) : [];
+  });
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  // ✅ Done Emails (removed)
-  const [doneIds, setDoneIds] = useState([]);
-  // ✅ Load Saved Folders on Startup
-  useEffect(() => {
-    const savedStarred = JSON.parse(localStorage.getItem("starredIds") || "[]");
-    const savedSnoozed = JSON.parse(localStorage.getItem("snoozedIds") || "[]");
-    const savedDone = JSON.parse(localStorage.getItem("doneIds") || "[]");
-    setStarredIds(savedStarred);
-    setSnoozedIds(savedSnoozed);
-    setDoneIds(savedDone);
-  }, []);
-
-  // ✅ Load Done Emails from localStorage on startup
-  useEffect(() => {
-    const savedDone = localStorage.getItem("doneIds");
-    if (savedDone) {
-      setDoneIds(JSON.parse(savedDone));
-    }
-  }, []);
+  // ✅ Done Emails
+  const [doneIds, setDoneIds] = useState(() => {
+    if (typeof window === "undefined") return [];
+    const saved = localStorage.getItem("doneIds");
+    return saved ? JSON.parse(saved) : [];
+  });
 
   // ── MODIFIED: activeFolder now initialises from the value set by Scasi inbox nav ──
   const [activeFolder, setActiveFolder] = useState("inbox");
@@ -413,11 +389,8 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
 
   const [selectedMail, setSelectedMail] = useState(null);
+  const ragIndexedRef = useRef(false);
 
-  const [summary, setSummary] = useState("");
-  const [summarizing, setSummarizing] = useState(false);
-
-  const [tasks, setTasks] = useState([]);
   // ✅ FIX 1: Default tab to "All Mails"
   const [activeTab, setActiveTab] = useState("All Mails");
 
@@ -427,18 +400,6 @@ export default function Home() {
   // ✅ Deadline + Urgency Inputs
   const [deadline, setDeadline] = useState("");
   const [urgency, setUrgency] = useState("Normal");
-
-  // ✅ Slides list (keep outside if)
-  const slides = [
-    "/login/slide1.png",
-    "/login/slide2.png",
-    "/login/slide3.png",
-    "/login/slide4.png",
-    "/login/slide5.png",
-  ];
-
-  // ✅ Slide state must be outside condition
-  const [currentSlide, setCurrentSlide] = useState(0);
 
   // ⭐ Toggle Star
   function toggleStar() {
@@ -470,25 +431,30 @@ export default function Home() {
     }
     setLoadingGemini(true);
     setGeminiReply("");
-    const emailText =
-      selectedMail.subject +
-      "\n\n" +
-      selectedMail.snippet +
-      "\n\n" +
-      (selectedMail.body || "");
-    const res = await fetch("/api/gemini", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        emailText,
-        question: geminiQuestion || "Summarize this email clearly",
-      }),
-    });
-    const data = await res.json();
-    if (data.reply) {
-      setGeminiReply(data.reply);
-    } else {
-      setGeminiReply("❌ Gemini failed: " + data.error);
+    try {
+      const emailText =
+        selectedMail.subject +
+        "\n\n" +
+        selectedMail.snippet +
+        "\n\n" +
+        (selectedMail.body || "");
+      const res = await fetch("/api/gemini", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          emailText,
+          question: geminiQuestion || "Summarize this email clearly",
+        }),
+      });
+      const data = await res.json();
+      if (data.reply) {
+        setGeminiReply(data.reply);
+      } else {
+        setGeminiReply("❌ Gemini failed: " + data.error);
+      }
+    } catch (err) {
+      console.error("Gemini error:", err);
+      setGeminiReply("❌ Network error: " + (err.message || "Failed to reach Gemini"));
     }
     setLoadingGemini(false);
   }
@@ -511,21 +477,6 @@ export default function Home() {
     }
     alert("🗑 Delete feature will be connected to Gmail API next");
   }
-
-  // ✅ Fade slideshow runs only when NOT logged in
-  useEffect(() => {
-    if (session) return;
-    const interval = setInterval(() => {
-      setCurrentSlide((prev) => {
-        let next = Math.floor(Math.random() * slides.length);
-        while (next === prev) {
-          next = Math.floor(Math.random() * slides.length);
-        }
-        return next;
-      });
-    }, 3500);
-    return () => clearInterval(interval);
-  }, [session]);
 
   const loadEmails = async () => {
     setLoading(true);
@@ -563,13 +514,15 @@ export default function Home() {
   };
 
   // ✅ FIXED: Combined function that fetches email AND generates AI
-  const openMailAndGenerateAI = async (id, mailPreview) => {
+  const openMailAndGenerateAI = async (id, _mailPreview) => {
     setAiSummary("");
     setAiReason("");
     setAiReply("");
     setLoadingAI(false);
     setDeadline(null);
     setUrgency("");
+    setHandleForMeResult("");
+    setLoadingHandleForMe(false);
     const res = await fetch(`/api/gmail/message?id=${id}`);
     const fullEmailData = await res.json();
     setSelectedMail(fullEmailData);
@@ -581,6 +534,65 @@ export default function Home() {
     setDeadline(detected);
     setUrgency(getUrgencyLevel(detected));
   };
+
+  async function runHandleForMe(mail) {
+    if (!mail) return;
+    setLoadingHandleForMe(true);
+    setHandleForMeResult("");
+    try {
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userMessage: "Handle this email for me",
+          emailContext: {
+            subject: mail.subject || "",
+            snippet: mail.snippet || mail.body || "",
+            from: mail.from || "",
+            body: mail.body || mail.snippet || "",
+          },
+        }),
+      });
+      if (!res.ok) {
+        setHandleForMeResult("❌ Failed to process email. Please try again.");
+        setLoadingHandleForMe(false);
+        return;
+      }
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      let collected = "";
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        let boundary = buffer.indexOf("\n\n");
+        while (boundary !== -1) {
+          const chunk = buffer.slice(0, boundary);
+          buffer = buffer.slice(boundary + 2);
+          boundary = buffer.indexOf("\n\n");
+          const dataLine = chunk.split("\n").find(l => l.startsWith("data: "));
+          if (dataLine) {
+            try {
+              const evt = JSON.parse(dataLine.replace("data: ", ""));
+              if (evt.type === "token") {
+                collected += evt.text;
+                setHandleForMeResult(collected);
+              } else if (evt.type === "error") {
+                collected += "\n❌ " + evt.message;
+                setHandleForMeResult(collected);
+              }
+            } catch { /* skip malformed SSE */ }
+          }
+        }
+      }
+      if (!collected) setHandleForMeResult("No response generated. Please try again.");
+    } catch (err) {
+      console.error("Handle For Me error:", err);
+      setHandleForMeResult("❌ Error: " + (err.message || "Network error"));
+    }
+    setLoadingHandleForMe(false);
+  }
 
   async function generateReply() {
     console.log("✅ generateReply() running...");
@@ -626,90 +638,84 @@ export default function Home() {
 
   async function generateSummary(mail) {
     setLoadingAI(true);
-    const emailContent = cleanEmailBody(mail.body || mail.snippet || "");
-    if (!emailContent) {
-      setAiSummary("⚠️ No email content available.");
-      setLoadingAI(false);
-      return;
+    try {
+      const emailContent = cleanEmailBody(mail.body || mail.snippet || "");
+      if (!emailContent) {
+        setAiSummary("⚠️ No email content available.");
+        setLoadingAI(false);
+        return;
+      }
+      const res = await fetch("/api/ai/summarize", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          subject: mail.subject,
+          snippet: emailContent,
+          from: mail.from,
+          date: mail.date,
+        }),
+      });
+      const data = await res.json();
+      if (data.error) {
+        setAiSummary("❌ " + data.error);
+      } else {
+        setAiSummary(data.summary || "No summary generated.");
+      }
+    } catch (err) {
+      console.error("Summary error:", err);
+      setAiSummary("❌ Failed to generate summary: " + (err.message || "Network error"));
     }
-    const res = await fetch("/api/ai/summarize", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        subject: mail.subject,
-        snippet: emailContent,
-        from: mail.from,
-        date: mail.date,
-      }),
-    });
-    const data = await res.json();
-    setAiSummary(data.summary || "No summary generated.");
     setLoadingAI(false);
   }
 
-  // ✅ NEW: AI Priority function for individual emails
   async function generateAIPriorityForMail(mail) {
     if (aiPriorityMap[mail.id]) return;
-    const res = await fetch("/api/ai/priority", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        subject: mail.subject,
-        snippet: mail.snippet,
-      }),
-    });
-    const data = await res.json();
-    if (data.result?.score) {
-      setAiPriorityMap((prev) => ({
-        ...prev,
-        [mail.id]: data.result,
-      }));
+    try {
+      const res = await fetch("/api/ai/priority", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          subject: mail.subject,
+          snippet: mail.snippet,
+        }),
+      });
+      const data = await res.json();
+      if (data.result?.priority) {
+        setAiPriorityMap((prev) => ({
+          ...prev,
+          [mail.id]: data.result,
+        }));
+      }
+    } catch (err) {
+      console.error("AI Priority error:", err);
     }
   }
 
   async function generateExplanation(mail) {
     setLoadingAI(true);
-    const res = await fetch("/api/ai/explain", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        subject: mail.subject || "",
-        snippet: mail.snippet || mail.body || "",
-        from: mail.from,
-        date: mail.date,
-      }),
-    });
-    const data = await res.json();
-    setAiReason(data.explanation || "No explanation generated.");
+    try {
+      const res = await fetch("/api/ai/explain", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          subject: mail.subject || "",
+          snippet: mail.snippet || mail.body || "",
+          from: mail.from,
+          date: mail.date,
+        }),
+      });
+      const data = await res.json();
+      if (data.error) {
+        setAiReason("❌ " + data.error);
+      } else {
+        setAiReason(data.explanation || "No explanation generated.");
+      }
+    } catch (err) {
+      console.error("Explanation error:", err);
+      setAiReason("❌ Failed to generate explanation: " + (err.message || "Network error"));
+    }
     setLoadingAI(false);
   }
-
-  const summarizeEmail = async () => {
-    if (!selectedMail?.body && !selectedMail?.snippet) return;
-    setSummarizing(true);
-    setSummary("");
-    const res = await fetch("/api/ai/summarize", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        text: selectedMail.body || selectedMail.snippet,
-      }),
-    });
-    const data = await res.json();
-    const formatted = data.summary
-      .replace(/https?:\/\/\S+/g, "")
-      .replace(/🔗\s*\[Link Removed\]/g, "")
-      .replace(/📌\s*PURPOSE:/g, "\n📌 PURPOSE:")
-      .replace(/📅\s*DATE:/g, "\n📅 DATE:")
-      .replace(/🔗\s*LINK:/g, "\n🔗 LINK: IS ATTACH BELOW🔻")
-      .replace(/📋\s*SUMMARY:/g, "\n📋 SUMMARY:")
-      .replace(/\[see link below ↓\]/g, "")
-      .replace(/Click the below/g, "See link below")
-      .replace(/CLICK HERE FOR LINK:/g, "")
-      .trim();
-    setSummary(formatted);
-    setSummarizing(false);
-  };
 
   function extractTasks(text) {
     const lower = text.toLowerCase();
@@ -768,14 +774,6 @@ export default function Home() {
     return "📌 Medium";
   }
 
-  useEffect(() => {
-    setMounted(true);
-    const interval = setInterval(() => {
-      setCurrentTime(new Date());
-    }, 1000);
-    return () => clearInterval(interval);
-  }, []);
-
   // ✅ FIX 4: Load emails when session is available
   useEffect(() => {
     if (!session) return;
@@ -811,6 +809,30 @@ export default function Home() {
         }
         setNewMails(freshMails);
         setNewMailCount(freshMails.length);
+
+        // Sync to Supabase (fire-and-forget)
+        if (data.emails?.length) {
+          fetch("/api/db/emails", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ emails: data.emails }),
+          }).catch(err => console.error("Failed to persist emails:", err));
+        }
+
+        // Trigger RAG indexing in background (once per session)
+        if (!ragIndexedRef.current && data.emails?.length) {
+          ragIndexedRef.current = true;
+          fetch("/api/actions/index-emails", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ maxEmails: 50 }),
+          })
+            .then(async (res) => {
+              const result = await res.json();
+              console.log(`✅ RAG indexed ${result.indexed || 0} emails (${result.failed || 0} failed)`);
+            })
+            .catch(err => console.error("RAG indexing failed:", err));
+        }
       } catch (error) {
         console.error("❌ Error loading emails:", error);
       }
@@ -1059,16 +1081,6 @@ export default function Home() {
     return name.substring(0, 2).toUpperCase();
   }
 
-  // ✅ Action Button Style
-  const actionBtn = {
-    padding: "8px 14px",
-    borderRadius: 10,
-    border: "1px solid #E5E7EB",
-    background: "white",
-    cursor: "pointer",
-    fontWeight: 600,
-  };
-
   // ── RENDER: Not logged in → landing ──
   if (!session) {
     return (
@@ -1087,7 +1099,15 @@ export default function Home() {
 
   // ── RENDER: Logged in but haven't navigated yet → Scasi inbox dashboard ──
   if (appView === "mailmind") {
-    return <MailMindDashboard onNavigate={handleMailMindNavigate} />;
+    return (
+      <MailMindDashboard
+        onNavigate={handleMailMindNavigate}
+        session={session}
+        emailCount={emails.length}
+        loadingEmails={loading}
+        emails={emails}
+      />
+    );
   }
 
   // ── RENDER: User clicked a nav item → full inbox ──
@@ -1536,7 +1556,7 @@ export default function Home() {
                         {isNew && <span className="pill" style={{ background: "#EFF6FF", color: "#2563EB" }}>New</span>}
                         {aiPriorityMap[mail.id] && (
                           <span className="pill" style={{ background: "#F5F3FF", color: "#7C3AED" }}>
-                            AI·{aiPriorityMap[mail.id].score}
+                            AI·{aiPriorityMap[mail.id].priority}
                           </span>
                         )}
                         <div style={{ flex: 1, minWidth: 16 }}>
@@ -1605,6 +1625,9 @@ export default function Home() {
                     <button className="btn grn" onClick={markDone}><Ico.Check /> Done</button>
                     <button className="btn red" onClick={deleteSelectedMail}><Ico.Trash /> Delete</button>
                     <button className="btn pri" onClick={() => setShowGemini(true)}><Ico.Sparkle /> Ask AI</button>
+                    <button className="ai-btn sm" onClick={() => runHandleForMe(selectedMail)} disabled={loadingHandleForMe}>
+                      <Ico.Zap /> {loadingHandleForMe ? "Processing…" : "Handle For Me"}
+                    </button>
                   </div>
                 </div>
 
@@ -1619,6 +1642,22 @@ export default function Home() {
                     <Ico.Info />
                     <div style={{ fontSize: 11.5, color: "#92400E" }}>
                       <strong>Deadline Detected:</strong>&ensp;{deadline}&ensp;·&ensp;Urgency:&ensp;<strong>{urgency}</strong>
+                    </div>
+                  </div>
+                )}
+
+                {/* ── HANDLE FOR ME RESULT ── */}
+                {(handleForMeResult || loadingHandleForMe) && (
+                  <div className="card-pu anim" style={{ marginBottom: 8 }}>
+                    <div className="card-ttl"><Ico.Zap /> Handle For Me — AI Analysis</div>
+                    <div style={{
+                      background: "#fff", borderRadius: 7, padding: "10px 12px",
+                      fontSize: 11.5, color: "#4C1D95", lineHeight: 1.7,
+                      border: "1px solid #DDD6FE", whiteSpace: "pre-wrap", minHeight: 60,
+                    }}>
+                      {loadingHandleForMe && !handleForMeResult
+                        ? <span style={{ color: "#A78BFA" }}>🔄 Analyzing email — classifying, summarizing, extracting tasks, drafting reply…</span>
+                        : handleForMeResult || <span style={{ color: "#C4B5FD" }}>Click Handle For Me to start</span>}
                     </div>
                   </div>
                 )}
@@ -1867,6 +1906,7 @@ export default function Home() {
                         <button className="btn red" onClick={() => setHoverFile(null)} style={{ fontSize: 10.5 }}>✕ Close</button>
                       </div>
                       {hoverFile.mimeType.startsWith("image/") && (
+                        /* eslint-disable-next-line @next/next/no-img-element */
                         <img
                           src={`/api/gmail/attachment?id=${selectedMail.id}&att=${hoverFile.attachmentId}&mime=${hoverFile.mimeType}`}
                           alt="preview"

@@ -574,8 +574,6 @@ const tableRows = [
 function CompareTable() {
     const ref = useRef(null);
     const inView = useInView(ref, { once: true, margin: "-50px" });
-    let lastCat = "";
-
     return (
         <div ref={ref} style={{ overflowX: "auto" }}>
             <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 640 }}>
@@ -598,8 +596,7 @@ function CompareTable() {
                 </thead>
                 <tbody>
                     {tableRows.map((row, i) => {
-                        const showCat = row.cat !== lastCat;
-                        lastCat = row.cat;
+                        const showCat = i === 0 || row.cat !== tableRows[i - 1].cat;
                         return (
                             <React.Fragment key={`fragment-${i}`}>
                                 {showCat && (
@@ -704,6 +701,29 @@ const testimonials = [
     },
 ];
 
+function TestimonialCard({ t, i }) {
+    const ref = useRef(null);
+    const inView = useInView(ref, { once: true });
+    return (
+        <motion.div ref={ref}
+            initial={{ opacity: 0, y: 40 }} animate={{ opacity: inView ? 1 : 0, y: inView ? 0 : 40 }}
+            transition={{ delay: i * .12, duration: .8, ease: [.23, 1, .32, 1] }}
+            whileHover={{ y: -6 }}
+            style={{ background: "linear-gradient(145deg,#0e0b28,#0b0920)", border: "1px solid rgba(124,58,237,.2)", borderRadius: 24, padding: "28px", boxShadow: "0 16px 50px rgba(0,0,0,.4),inset 0 1px 0 rgba(255,255,255,.05)", position: "relative", overflow: "hidden" }}>
+            <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 3, background: `linear-gradient(90deg,transparent,${t.color},transparent)`, opacity: .7 }} />
+            <div style={{ fontSize: 28, marginBottom: 16, opacity: .4 }}>&quot;</div>
+            <p style={{ fontFamily: DISPLAY, fontSize: 13, color: "#94a3b8", lineHeight: 1.75, marginBottom: 20, fontStyle: "italic" }}>{t.quote}</p>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <div style={{ width: 38, height: 38, borderRadius: 11, background: `linear-gradient(135deg,${t.color},${t.color}80)`, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: BODY, fontSize: 12, fontWeight: 800, color: "white", flexShrink: 0 }}>{t.avatar}</div>
+                <div>
+                    <div style={{ fontFamily: BODY, fontSize: 12, fontWeight: 700, color: "#e2e8f0" }}>{t.name}</div>
+                    <div style={{ fontFamily: BODY, fontSize: 10, color: "#475569" }}>{t.role}</div>
+                </div>
+            </div>
+        </motion.div>
+    );
+}
+
 export default function ScasiPricing() {
     const [yearly, setYearly] = useState(true);
 
@@ -750,7 +770,7 @@ export default function ScasiPricing() {
                         initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: .7, delay: .2 }}
                         style={{ fontFamily: BODY, fontSize: 17, color: "#64748b", lineHeight: 1.82, marginBottom: 44, maxWidth: 540, margin: "0 auto 44px" }}>
-                        Start free. Scale up when you're ready. No hidden fees, no surprise charges — just a calmer, smarter inbox every single day.
+                        Start free. Scale up when you&apos;re ready. No hidden fees, no surprise charges — just a calmer, smarter inbox every single day.
                     </motion.p>
 
                     <motion.div
@@ -837,28 +857,7 @@ export default function ScasiPricing() {
                         </h2>
                     </motion.div>
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 22 }}>
-                        {testimonials.map((t, i) => {
-                            const ref = useRef(null);
-                            const inView = useInView(ref, { once: true });
-                            return (
-                                <motion.div key={i} ref={ref}
-                                    initial={{ opacity: 0, y: 40 }} animate={{ opacity: inView ? 1 : 0, y: inView ? 0 : 40 }}
-                                    transition={{ delay: i * .12, duration: .8, ease: [.23, 1, .32, 1] }}
-                                    whileHover={{ y: -6 }}
-                                    style={{ background: "linear-gradient(145deg,#0e0b28,#0b0920)", border: "1px solid rgba(124,58,237,.2)", borderRadius: 24, padding: "28px", boxShadow: "0 16px 50px rgba(0,0,0,.4),inset 0 1px 0 rgba(255,255,255,.05)", position: "relative", overflow: "hidden" }}>
-                                    <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 3, background: `linear-gradient(90deg,transparent,${t.color},transparent)`, opacity: .7 }} />
-                                    <div style={{ fontSize: 28, marginBottom: 16, opacity: .4 }}>"</div>
-                                    <p style={{ fontFamily: DISPLAY, fontSize: 13, color: "#94a3b8", lineHeight: 1.75, marginBottom: 20, fontStyle: "italic" }}>{t.quote}</p>
-                                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                                        <div style={{ width: 38, height: 38, borderRadius: 11, background: `linear-gradient(135deg,${t.color},${t.color}80)`, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: BODY, fontSize: 12, fontWeight: 800, color: "white", flexShrink: 0 }}>{t.avatar}</div>
-                                        <div>
-                                            <div style={{ fontFamily: BODY, fontSize: 12, fontWeight: 700, color: "#e2e8f0" }}>{t.name}</div>
-                                            <div style={{ fontFamily: BODY, fontSize: 10, color: "#475569" }}>{t.role}</div>
-                                        </div>
-                                    </div>
-                                </motion.div>
-                            );
-                        })}
+                        {testimonials.map((t, i) => <TestimonialCard key={i} t={t} i={i} />)}
                     </div>
                 </div>
             </section>
@@ -887,10 +886,10 @@ export default function ScasiPricing() {
                     <motion.div initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: .8 }}>
                         <Chip label="Start Today" dark />
                         <h2 style={{ fontFamily: DISPLAY, fontWeight: 900, fontSize: "clamp(36px,4.5vw,68px)", letterSpacing: "-2.5px", lineHeight: 1.05, background: "linear-gradient(160deg,#e9d5ff 0%,#c084fc 35%,#a855f7 65%,#7c3aed 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text", marginBottom: 20 }}>
-                            Your inbox won't fix itself.
+                            Your inbox won&apos;t fix itself.
                         </h2>
                         <p style={{ fontFamily: BODY, fontSize: 15, color: "rgba(200,188,255,.6)", lineHeight: 1.85, marginBottom: 44, maxWidth: 460, margin: "0 auto 44px" }}>
-                            Join 12,000+ professionals who've reclaimed their time, focus, and peace of mind with Scasi's AI.
+                            Join 12,000+ professionals who&apos;ve reclaimed their time, focus, and peace of mind with Scasi&apos;s AI.
                         </p>
                         <div style={{ display: "flex", gap: 14, justifyContent: "center", flexWrap: "wrap" }}>
                             <motion.button whileHover={{ scale: 1.05, boxShadow: "0 20px 60px rgba(124,58,237,.55)" }} whileTap={{ scale: .97 }}

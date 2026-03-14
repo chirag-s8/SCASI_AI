@@ -11,7 +11,7 @@ export async function GET() {
         }
 
         return NextResponse.json({ authenticated: false }, { status: 401 });
-    } catch (error) {
+    } catch (_error) {
         return NextResponse.json({ error: "Session check failed" }, { status: 500 });
     }
 }
