@@ -84,7 +84,7 @@ function buildInitialPrompt(
     return messages.join('\n\n');
 }
 
-const INTENT_SYSTEM = `You are an intent classifier for an AI email assistant called MailMind.
+const INTENT_SYSTEM = `You are an intent classifier for an AI email assistant called Scasi.
 Classify the user's request into one of these workflows:
 - handle_for_me: User EXPLICITLY asks to "handle this for me", "do everything", "take care of this", or "handle this email". Must be an explicit all-in-one delegation request.
 - sort_inbox: User wants to sort/prioritize/organize their inbox

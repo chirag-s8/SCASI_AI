@@ -1,16 +1,14 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
-import { useVoiceController } from "@/src/agents/voice/useVoiceController";
-import { WakeWordListener } from "@/src/agents/voice/wakeWordListener";
+import { useVoice } from "@/components/voice/VoiceContext";
 
-const SessionOverlay = dynamic(() => import("@/components/voice/SessionOverlay"), { ssr: false });
 const MicButton = dynamic(() => import("@/components/voice/MicButton"), { ssr: false });
 
-function MailMindDashboard({ onNavigate, session, emailCount, loadingEmails, emails = [] }) {
+function ScasiDashboard({ onNavigate, session, emailCount, loadingEmails, emails = [] }) {
     const router = useRouter();
     const [showUserMenu, setShowUserMenu] = useState(false);
     const userName = session?.user?.name || "User";
@@ -18,32 +16,8 @@ function MailMindDashboard({ onNavigate, session, emailCount, loadingEmails, ema
     const userInitial = userName.charAt(0).toUpperCase();
     const inboxCount = typeof emailCount === "number" ? emailCount : 0;
 
-    // ── Voice assistant ──
-    const [voiceTranscript, setVoiceTranscript] = useState("");
-    const [voiceAnswer, setVoiceAnswer] = useState("");
-    const { state: voiceState, startSession, stopSession, isSupported: voiceSupported } = useVoiceController({
-        onTranscript: (text) => { setVoiceTranscript(text); },
-        onAnswer: (text) => { setVoiceAnswer(text); setVoiceTranscript(""); },
-        onStateChange: (s) => { if (s === "idle") { setVoiceTranscript(""); setVoiceAnswer(""); } },
-    });
-    const isVoiceActive = voiceState !== "idle";
-    const wakeListenerRef = useRef(null);
-    const startSessionRef = useRef(startSession);
-    useEffect(() => { startSessionRef.current = startSession; }, [startSession]);
-
-    useEffect(() => {
-        const listener = new WakeWordListener({ onDetected: () => startSessionRef.current() });
-        wakeListenerRef.current = listener;
-        listener.start();
-        return () => listener.stop();
-    }, []);
-
-    useEffect(() => {
-        const listener = wakeListenerRef.current;
-        if (!listener) return;
-        if (isVoiceActive) listener.pause();
-        else listener.resume();
-    }, [isVoiceActive]);
+    // ── Voice assistant (shared via VoiceContext) ──
+    const { state: voiceState, startSession, stopSession, isSupported: voiceSupported, isVoiceActive } = useVoice();
 
     // Compute real stats from emails
     const now = new Date();
@@ -725,17 +699,8 @@ grid-template-columns: 40% 60%;
                     </aside>
                 </div>
             </div>
-            {SessionOverlay && (
-                <SessionOverlay
-                    state={voiceState}
-                    isVisible={isVoiceActive}
-                    onDismiss={stopSession}
-                    transcript={voiceTranscript}
-                    answer={voiceAnswer}
-                />
-            )}
         </>
     );
 }
 
-export default MailMindDashboard;
+export default ScasiDashboard;

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { signOut } from "next-auth/react";
 import dynamic from "next/dynamic";
 import { useVoiceController } from "@/src/agents/voice/useVoiceController";
@@ -26,7 +26,16 @@ export default function TopNavbar({
     setAppView,
     setShowCompose,
 }) {
-    const { state: voiceState, startSession, stopSession, isSupported } = useVoiceController();
+    const [voiceTranscript, setVoiceTranscript] = useState("");
+    const [voiceAnswer, setVoiceAnswer] = useState("");
+    const voiceSessionIdRef = useRef(null);
+
+    const { state: voiceState, startSession, stopSession, isSupported } = useVoiceController({
+        sessionId: voiceSessionIdRef.current,
+        onTranscript: (text) => setVoiceTranscript(text),
+        onAnswer: (text) => { setVoiceAnswer(text); setVoiceTranscript(""); },
+        onStateChange: (s) => { if (s === "idle") { setVoiceTranscript(""); setVoiceAnswer(""); voiceSessionIdRef.current = null; } },
+    });
     const isVoiceActive = voiceState !== "idle";
 
     const wakeListenerRef = useRef(null);
@@ -51,8 +60,14 @@ export default function TopNavbar({
     }, [isVoiceActive]);
 
     const handleMicClick = () => {
-        if (isVoiceActive) stopSession();
-        else startSession();
+        if (isVoiceActive) {
+            stopSession();
+        } else {
+            voiceSessionIdRef.current = crypto.randomUUID();
+            setVoiceTranscript("");
+            setVoiceAnswer("");
+            startSession();
+        }
     };
 
     return (
@@ -197,7 +212,7 @@ export default function TopNavbar({
             </div>
 
             {/* Dashboard button */}
-            <button className="btn" onClick={() => setAppView("mailmind")}>
+            <button className="btn" onClick={() => setAppView("scasi")}>
                 Dashboard
             </button>
 
@@ -238,6 +253,8 @@ export default function TopNavbar({
             state={voiceState}
             isVisible={isVoiceActive}
             onDismiss={stopSession}
+            transcript={voiceTranscript}
+            answer={voiceAnswer}
         />
     </>
     );

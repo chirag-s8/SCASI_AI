@@ -12,7 +12,7 @@
  */
 
 import type { Agent, AgentContext } from '../_shared/types';
-import { MailMindError } from '../_shared/types';
+import { ScasiError } from '../_shared/types';
 import { llmRouter } from '../../llm/router';
 import {
     type ClassifyInput,
@@ -105,7 +105,7 @@ export class NlpAgent implements Agent<NlpRequest, NlpResponse> {
             temperature: 0.3,
             maxTokens: 256,
         });
-        if (!result.data) throw new MailMindError({ code: 'NLP_PARSE_ERROR', message: 'No structured data returned for classify' });
+        if (!result.data) throw new ScasiError({ code: 'NLP_PARSE_ERROR', message: 'No structured data returned for classify' });
         return result.data;
     }
 
@@ -122,7 +122,7 @@ export class NlpAgent implements Agent<NlpRequest, NlpResponse> {
             temperature: 0.4,
             maxTokens: 512,
         });
-        if (!result.data) throw new MailMindError({ code: 'NLP_PARSE_ERROR', message: 'No structured data returned for summarize' });
+        if (!result.data) throw new ScasiError({ code: 'NLP_PARSE_ERROR', message: 'No structured data returned for summarize' });
         return result.data;
     }
 
@@ -139,7 +139,7 @@ export class NlpAgent implements Agent<NlpRequest, NlpResponse> {
             temperature: 0.7,
             maxTokens: 1024,
         });
-        if (!result.data) throw new MailMindError({ code: 'NLP_PARSE_ERROR', message: 'No structured data returned for draftReply' });
+        if (!result.data) throw new ScasiError({ code: 'NLP_PARSE_ERROR', message: 'No structured data returned for draftReply' });
         return result.data;
     }
 
@@ -156,7 +156,7 @@ export class NlpAgent implements Agent<NlpRequest, NlpResponse> {
             temperature: 0.3,
             maxTokens: 1024,
         });
-        if (!result.data) throw new MailMindError({ code: 'NLP_PARSE_ERROR', message: 'No structured data returned for extractTasks' });
+        if (!result.data) throw new ScasiError({ code: 'NLP_PARSE_ERROR', message: 'No structured data returned for extractTasks' });
         return result.data;
     }
 
@@ -173,7 +173,7 @@ export class NlpAgent implements Agent<NlpRequest, NlpResponse> {
             temperature: 0.3,
             maxTokens: 1024,
         });
-        if (!result.data) throw new MailMindError({ code: 'NLP_PARSE_ERROR', message: 'No structured data returned for extractEntities' });
+        if (!result.data) throw new ScasiError({ code: 'NLP_PARSE_ERROR', message: 'No structured data returned for extractEntities' });
         return result.data;
     }
 
@@ -191,7 +191,7 @@ export class NlpAgent implements Agent<NlpRequest, NlpResponse> {
             temperature: 0.5,
             maxTokens: 512,
         });
-        if (!result.data) throw new MailMindError({ code: 'NLP_PARSE_ERROR', message: 'No structured data returned for explain' });
+        if (!result.data) throw new ScasiError({ code: 'NLP_PARSE_ERROR', message: 'No structured data returned for explain' });
         return result.data;
     }
 }

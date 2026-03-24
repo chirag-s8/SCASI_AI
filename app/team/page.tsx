@@ -3,7 +3,11 @@
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
 import TeamCollaboration from "@/components/team/TeamCollaboration";
+import { useVoice } from "@/components/voice/VoiceContext";
+
+const MicButton = dynamic(() => import("@/components/voice/MicButton"), { ssr: false });
 
 export default function TeamPage() {
   const { data: session } = useSession();
@@ -11,6 +15,7 @@ export default function TeamPage() {
   const [teamMembers, setTeamMembers] = useState<any[]>([]);
   const [assignedEmails, setAssignedEmails] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const { voiceState, startSession, stopSession, isSupported, isVoiceActive } = useVoice();
 
   useEffect(() => {
     if (!session) {
@@ -156,6 +161,13 @@ export default function TeamPage() {
             >
               👥 Team
             </button>
+            {MicButton && (
+              <MicButton
+                state={voiceState}
+                onClick={isVoiceActive ? stopSession : startSession}
+                isSupported={isSupported.stt}
+              />
+            )}
             <button
               onClick={() => router.push("/")}
               style={{ padding: "12px 24px", borderRadius: 12, border: "1px solid #E5E7EB", background: "white", cursor: "pointer", fontWeight: 700, fontSize: 14 }}

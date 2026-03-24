@@ -145,14 +145,14 @@ function Hero() {
             <motion.div animate={{ rotate: -360 }} transition={{ duration: 60, repeat: Infinity, ease: "linear" }} style={{ position: "absolute", top: "5%", right: "5%", width: 290, height: 290, borderRadius: "50%", border: "1px dashed rgba(168,85,247,.08)", zIndex: 2, pointerEvents: "none" }} />
             <motion.div animate={{ rotate: 360 }} transition={{ duration: 50, repeat: Infinity, ease: "linear" }} style={{ position: "absolute", bottom: "10%", left: "6%", width: 180, height: 180, borderRadius: "50%", border: "1px solid rgba(124,58,237,.08)", zIndex: 2, pointerEvents: "none" }} />
             <div style={{ position: "relative", zIndex: 10, textAlign: "center", maxWidth: 860, padding: "130px 48px 100px" }}>
-                <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .6 }}><Chip label="How MailMind Works" /></motion.div>
+                <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .6 }}><Chip label="How Scasi Works" /></motion.div>
                 <motion.h1 initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .9, delay: .1, ease: [.23, 1, .32, 1] }}
                     style={{ fontFamily: DISPLAY, fontWeight: 900, fontSize: "clamp(48px,6vw,92px)", lineHeight: 1.03, letterSpacing: "-3px", marginBottom: 22, color: "#0f0b24" }}>
                     Your inbox.<br /><GradText>Transformed by AI.</GradText>
                 </motion.h1>
                 <motion.p initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .7, delay: .2 }}
                     style={{ fontFamily: BODY, fontSize: 18, color: "#64748b", lineHeight: 1.85, marginBottom: 56, maxWidth: 580, margin: "0 auto 56px" }}>
-                    MailMind layers 8 AI models over your Gmail to score, categorize, summarize, and act on every email — so you focus only on what matters.
+                    Scasi layers 8 AI models over your Gmail to score, categorize, summarize, and act on every email — so you focus only on what matters.
                 </motion.p>
                 <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: .35, duration: .8 }} style={{ display: "flex", alignItems: "center", justifyContent: "center", flexWrap: "wrap", gap: 8 }}>
                     {steps.map((s, i) => (
@@ -182,11 +182,11 @@ function Hero() {
    PROCESS TIMELINE  (dark)
 ════════════════════════════════════════════════════ */
 const processSteps = [
-    { num: "01", Ic: Icon.Lock, title: "Connect with Google OAuth 2.0", desc: "One click connects your Gmail securely. MailMind uses OAuth 2.0 — your password is never seen or stored. We read, send, and modify emails only when you ask.", details: ["Gmail full OAuth 2.0", "Token auto-refresh", "CSRF protected", "No password storage"] },
+    { num: "01", Ic: Icon.Lock, title: "Connect with Google OAuth 2.0", desc: "One click connects your Gmail securely. Scasi uses OAuth 2.0 — your password is never seen or stored. We read, send, and modify emails only when you ask.", details: ["Gmail full OAuth 2.0", "Token auto-refresh", "CSRF protected", "No password storage"] },
     { num: "02", Ic: Icon.Inbox, title: "Your Inbox Loads Instantly", desc: "Emails appear in a clean, paginated list. Avatars, snippets, sender names — all rendered from Gmail's API in real-time. Threads are grouped, folders are smart.", details: ["Thread grouping", "Real-time refresh", "Paginated loading", "Inbox · Starred · Snoozed · Archive"] },
     { num: "03", Ic: Icon.Bot, title: "AI Analyses Every Email", desc: "8 AI models (powered by Qwen 2.5 Coder 32B via OpenRouter) process each email on-demand. Nothing runs until you need it — your data is never batch-processed or stored.", details: ["Priority scoring (1–100)", "Smart categorisation", "Spam neural shield", "Deadline extraction"] },
-    { num: "04", Ic: Icon.Zap, title: "You Act — or Let AI Handle It", desc: "MailMind\u2019s agentic \u201CHandle For Me\u201D runs a 5-step pipeline \u2014 analyse, create task, check calendar, draft reply \u2014 and presents every action for your approval before sending.", details: ["AI-drafted replies", "Handle For Me agent", "Smart to-do titles", "Never sends without approval"] },
-    { num: "05", Ic: Icon.BarChart, title: "Weekly Intelligence Report", desc: "Every Sunday, MailMind generates a burnout risk score, productivity rate, stress analysis, and personalised recommendations — turning email data into wellbeing insights.", details: ["Burnout score (0–100)", "Stress level detection", "Late-night tracking", "Productivity trend analysis"] },
+    { num: "04", Ic: Icon.Zap, title: "You Act — or Let AI Handle It", desc: "Scasi\u2019s agentic \u201CHandle For Me\u201D runs a 5-step pipeline \u2014 analyse, create task, check calendar, draft reply \u2014 and presents every action for your approval before sending.", details: ["AI-drafted replies", "Handle For Me agent", "Smart to-do titles", "Never sends without approval"] },
+    { num: "05", Ic: Icon.BarChart, title: "Weekly Intelligence Report", desc: "Every Sunday, Scasi generates a burnout risk score, productivity rate, stress analysis, and personalised recommendations — turning email data into wellbeing insights.", details: ["Burnout score (0–100)", "Stress level detection", "Late-night tracking", "Productivity trend analysis"] },
 ];
 
 function ProcessStepItem({ step, i }) {
@@ -293,7 +293,7 @@ const aiFeatures = [
     },
     {
         Ic: Icon.Edit, title: "AI Reply Generation", subtitle: "Context-aware drafts",
-        desc: "MailMind reads the full thread and crafts a professional, polite, concise reply. Edit it, copy it, or send it directly from the app.",
+        desc: "Scasi reads the full thread and crafts a professional, polite, concise reply. Edit it, copy it, or send it directly from the app.",
         visual: <div style={{ padding: "16px 0 4px" }}>
             <div style={{ background: "rgba(167,139,250,.08)", border: "1px solid rgba(167,139,250,.2)", borderRadius: 12, padding: "12px 14px" }}>
                 <div style={{ fontFamily: BODY, fontSize: 9, color: "#a78bfa", fontWeight: 800, marginBottom: 6, letterSpacing: .8, display: "flex", alignItems: "center", gap: 5 }}>
@@ -490,7 +490,7 @@ function TechSection() {
                 <div style={{ background: "linear-gradient(145deg,#0e0b28,#0b0920)", border: "1px solid rgba(124,58,237,.2)", borderRadius: 24, overflow: "hidden", boxShadow: "0 20px 60px rgba(0,0,0,.35)" }}>
                     <div style={{ padding: "20px 24px", borderBottom: "1px solid rgba(255,255,255,.06)", display: "flex", alignItems: "center", gap: 8 }}>
                         {["rgba(255,255,255,.18)", "rgba(255,255,255,.12)", "rgba(255,255,255,.08)"].map((c, i) => (<div key={i} style={{ width: 11, height: 11, borderRadius: "50%", background: c }} />))}
-                        <span style={{ fontFamily: BODY, fontSize: 11, color: "#334155", marginLeft: 8, fontWeight: 600 }}>MailMind API — 15 Endpoints</span>
+                        <span style={{ fontFamily: BODY, fontSize: 11, color: "#334155", marginLeft: 8, fontWeight: 600 }}>Scasi API — 15 Endpoints</span>
                     </div>
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 0 }}>
                         {apiEndpoints.map((ep, i) => (
@@ -578,7 +578,7 @@ function CompareSection() {
             <NerveCanvas />
             <div style={{ position: "relative", zIndex: 10, maxWidth: 920, margin: "0 auto" }}>
                 <motion.div initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} style={{ textAlign: "center", marginBottom: 52 }}>
-                    <Chip label="Why MailMind" />
+                    <Chip label="Why Scasi" />
                     <h2 style={{ fontFamily: DISPLAY, fontWeight: 900, fontSize: "clamp(30px,4vw,52px)", letterSpacing: "-2px", lineHeight: 1.07, color: "#0f0b24" }}>Not just another<br /><GradText>email client.</GradText></h2>
                 </motion.div>
                 <div style={{ background: "linear-gradient(145deg,#0e0b28,#0b0920)", border: "1px solid rgba(124,58,237,.2)", borderRadius: 24, overflow: "hidden", boxShadow: "0 20px 60px rgba(0,0,0,.35)" }}>
@@ -586,7 +586,7 @@ function CompareSection() {
                         <thead>
                             <tr>
                                 <th style={{ textAlign: "left", padding: "18px 24px", fontFamily: BODY, fontSize: 10, color: "#334155", fontWeight: 800, letterSpacing: 2, textTransform: "uppercase", borderBottom: "1px solid rgba(255,255,255,.07)" }}>Feature</th>
-                                {["Gmail", "Outlook", "MailMind"].map((h, i) => (
+                                {["Gmail", "Outlook", "Scasi"].map((h, i) => (
                                     <th key={h} style={{ textAlign: "center", padding: "18px 12px", fontFamily: BODY, fontSize: 12, fontWeight: 800, color: i === 2 ? "#a78bfa" : "#475569", borderBottom: "1px solid rgba(255,255,255,.07)" }}>
                                         {h}{i === 2 && <div style={{ fontFamily: BODY, fontSize: 8, color: "#7c3aed", fontWeight: 600, letterSpacing: .5, marginTop: 2 }}>AI-POWERED</div>}
                                     </th>

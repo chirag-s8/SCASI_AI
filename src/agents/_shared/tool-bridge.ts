@@ -137,6 +137,84 @@ function buildTools(): ToolDefinition[] {
                 );
             },
         },
+        {
+            name: 'gmail.liveInbox',
+            description: 'Query the user\'s Gmail inbox in real-time. Returns recent emails with subject, sender, date, and snippet. Use this for questions about unread count, latest emails, or finding specific recent emails. Common queries: "is:unread" for unread count, "in:inbox" for recent inbox, "from:NAME" to find emails from someone, "newer_than:1d" for today\'s emails.',
+            parameters: {
+                type: 'object',
+                properties: {
+                    query: { type: 'string', description: 'Gmail search query (e.g. "is:unread", "from:john", "subject:meeting", "newer_than:1d"). Default: "in:inbox"' },
+                    maxResults: { type: 'number', description: 'Max emails to return (default 10)' },
+                },
+                required: [],
+            },
+            execute: async (input, ctx) => {
+                const accessToken = ctx.metadata?.accessToken as string | undefined;
+                if (!accessToken) {
+                    return { error: 'No Gmail access token available. The user may need to sign in again.' };
+                }
+
+                try {
+                    const { google } = await import('googleapis');
+                    const auth = new google.auth.OAuth2();
+                    auth.setCredentials({ access_token: accessToken });
+                    const gmail = google.gmail({ version: 'v1', auth });
+
+                    const query = (input.query as string) || 'in:inbox';
+                    const maxResults = Math.min((input.maxResults as number) || 10, 20);
+
+                    const listRes = await gmail.users.messages.list({
+                        userId: 'me',
+                        maxResults,
+                        q: query,
+                    });
+
+                    const messages = listRes.data.messages || [];
+                    const estimatedTotal = listRes.data.resultSizeEstimate || 0;
+
+                    if (messages.length === 0) {
+                        return { estimatedTotal: 0, count: 0, emails: [], query };
+                    }
+
+                    const results = await Promise.allSettled(
+                        messages.map(async (m) => {
+                            if (!m.id) return null;
+                            const msg = await gmail.users.messages.get({
+                                userId: 'me',
+                                id: m.id,
+                                format: 'metadata',
+                                metadataHeaders: ['Subject', 'From', 'Date'],
+                            });
+                            const headers = msg.data.payload?.headers || [];
+                            const getHeader = (name: string) =>
+                                headers.find((h) => h.name === name)?.value || '';
+                            const labelIds = msg.data.labelIds || [];
+                            return {
+                                id: m.id,
+                                subject: getHeader('Subject'),
+                                from: getHeader('From'),
+                                date: getHeader('Date') || new Date().toISOString(),
+                                snippet: msg.data.snippet || '',
+                                labelIds,
+                                isUnread: labelIds.includes('UNREAD'),
+                            };
+                        })
+                    );
+
+                    const emails = results
+                        .flatMap(r => r.status === 'fulfilled' && r.value != null ? [r.value] : []);
+
+                    const unreadCount = emails.filter(e => e.isUnread).length;
+                    return { estimatedTotal, count: emails.length, unreadInResults: unreadCount, emails, query };
+                } catch (err: unknown) {
+                    const msg = err instanceof Error ? err.message : 'Gmail query failed';
+                    if (msg.includes('401') || msg.includes('invalid_grant')) {
+                        return { error: 'Gmail session expired. Please sign out and sign back in.' };
+                    }
+                    return { error: `Gmail query failed: ${msg}` };
+                }
+            },
+        },
     ];
 }
 

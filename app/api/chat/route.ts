@@ -41,6 +41,9 @@ export async function POST(req: Request) {
 
     const { userMessage, sessionId, emailContext } = body;
 
+    // Forward Gmail access token so orchestrator tools can query live inbox
+    const accessToken = (session as Record<string, unknown>).accessToken as string | undefined;
+
     const traceId = TraceId(crypto.randomUUID());
     const ctx: AgentContext = {
         traceId,
@@ -48,6 +51,7 @@ export async function POST(req: Request) {
         sessionId: sessionId ? SessionId(sessionId) : undefined,
         requestedAt: new Date().toISOString(),
         agentName: 'orchestrator',
+        metadata: accessToken ? { accessToken } : undefined,
     };
 
     const encoder = new TextEncoder();

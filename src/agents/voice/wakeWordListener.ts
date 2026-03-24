@@ -97,7 +97,8 @@ export class WakeWordListener {
     };
 
     rec.onend = () => {
-      if (this.running) {
+      // Only restart if still running AND not paused — prevents mic conflict with session STT
+      if (this.running && !this.paused) {
         try { rec.start(); } catch { /* ignore race */ }
       }
     };

@@ -17,7 +17,7 @@ export type { AgentContext, Agent } from './types';
 export { AgentContextSchema } from './types';
 
 // Custom error class
-export { MailMindError } from './types';
+export { ScasiError } from './types';
 
 // Supabase helpers
 export {

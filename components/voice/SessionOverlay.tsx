@@ -2,18 +2,19 @@
 /**
  * @file components/voice/SessionOverlay.tsx
  * Siri-style session overlay for Scasi voice assistant.
- * Displays live transcript (user speech) and Scasi's answer below the wave icon.
+ * Shows full conversation history + live transcript below the wave orb.
  */
 
+import { useEffect, useRef } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import type { VoiceState } from "@/src/agents/voice/voiceTypes";
+import type { VoiceMessage, VoiceState } from "@/src/agents/voice/voiceTypes";
 
 interface SessionOverlayProps {
   state: VoiceState;
   isVisible: boolean;
   onDismiss: () => void;
   transcript?: string;
-  answer?: string;
+  messages?: VoiceMessage[];
 }
 
 const RING_COUNT = 4;
@@ -22,9 +23,9 @@ const ringVariants: Record<
   Exclude<VoiceState, "idle">,
   { scale: number[]; opacity: number[]; duration: number; stagger: number }
 > = {
-  listening: { scale: [1, 1.25, 1], opacity: [0.5, 0.15, 0.5], duration: 2.4, stagger: 0.4 },
-  processing: { scale: [1, 1.1, 1], opacity: [0.4, 0.1, 0.4], duration: 1.2, stagger: 0.2 },
-  speaking: { scale: [1, 1.45, 1], opacity: [0.6, 0.05, 0.6], duration: 0.9, stagger: 0.15 },
+  listening:  { scale: [1, 1.28, 1], opacity: [0.5, 0.1, 0.5], duration: 2.2, stagger: 0.38 },
+  processing: { scale: [1, 1.12, 1], opacity: [0.4, 0.1, 0.4], duration: 1.1, stagger: 0.18 },
+  speaking:   { scale: [1, 1.5,  1], opacity: [0.6, 0.05, 0.6], duration: 0.85, stagger: 0.13 },
 };
 
 const stateLabel: Record<VoiceState, string> = {
@@ -40,165 +41,206 @@ export default function SessionOverlay({
   isVisible,
   onDismiss,
   transcript,
-  answer,
+  messages = [],
 }: SessionOverlayProps) {
   const activeState = state === "idle" ? "listening" : state;
   const config = ringVariants[activeState as Exclude<VoiceState, "idle">];
   const color = stateColor[state];
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const hasContent = messages.length > 0 || !!transcript;
+
+  // Auto-scroll to bottom whenever messages or transcript change
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [messages, transcript]);
 
   return (
     <AnimatePresence>
       {isVisible && (
         <motion.div
           key="scasi-overlay"
-          initial={{ opacity: 0, scale: 0.85 }}
+          initial={{ opacity: 0, scale: 0.88 }}
           animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0, scale: 0.85 }}
-          transition={{ duration: 0.25, ease: "easeOut" }}
+          exit={{ opacity: 0, scale: 0.88 }}
+          transition={{ duration: 0.22, ease: "easeOut" }}
           style={{
             position: "fixed", inset: 0, zIndex: 9999,
             display: "flex", alignItems: "center", justifyContent: "center",
-            background: "rgba(0,0,0,0.55)", backdropFilter: "blur(6px)",
+            background: "rgba(0,0,0,0.6)", backdropFilter: "blur(8px)",
           }}
           onClick={onDismiss}
         >
           <motion.div
             onClick={(e) => e.stopPropagation()}
             style={{
-              position: "relative", width: 340, borderRadius: 32,
-              background: "linear-gradient(135deg, #0f0c29, #302b63, #24243e)",
-              display: "flex", flexDirection: "column", alignItems: "center",
-              paddingBottom: 24,
-              boxShadow: `0 0 60px 10px ${color}55`, overflow: "visible",
+              position: "relative",
+              width: 400,
+              maxHeight: "85vh",
+              borderRadius: 32,
+              background: "linear-gradient(145deg, #0f0c29 0%, #1a1640 50%, #24243e 100%)",
+              border: "1px solid rgba(167,139,250,0.18)",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              overflow: "hidden",
+              boxShadow: `0 0 80px 12px ${color}44, 0 32px 80px rgba(0,0,0,0.6)`,
             }}
           >
-            {/* ── Wave orb area ── */}
+            {/* ── Wave orb ── */}
             <div style={{
-              position: "relative", width: 220, height: 220,
-              display: "flex", flexDirection: "column",
-              alignItems: "center", justifyContent: "center",
+              position: "relative",
+              width: 200,
+              height: 200,
               flexShrink: 0,
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
             }}>
-              {/* Wave rings */}
               {Array.from({ length: RING_COUNT }).map((_, i) => (
                 <motion.div
                   key={i}
                   animate={{ scale: config.scale, opacity: config.opacity }}
-                  transition={{ duration: config.duration, repeat: Infinity, ease: "easeInOut", delay: i * config.stagger }}
+                  transition={{
+                    duration: config.duration,
+                    repeat: Infinity,
+                    ease: "easeInOut",
+                    delay: i * config.stagger,
+                  }}
                   style={{
-                    position: "absolute", width: 220, height: 220, borderRadius: 32,
-                    border: `2px solid ${color}`, pointerEvents: "none",
+                    position: "absolute",
+                    width: 200,
+                    height: 200,
+                    borderRadius: 32,
+                    border: `2px solid ${color}`,
+                    pointerEvents: "none",
                   }}
                 />
               ))}
 
-              {/* Processing spinner */}
               {state === "processing" && (
                 <motion.div
                   animate={{ rotate: 360 }}
-                  transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                  transition={{ duration: 0.9, repeat: Infinity, ease: "linear" }}
                   style={{
-                    position: "absolute", width: 80, height: 80, borderRadius: "50%",
-                    border: "3px solid transparent", borderTopColor: color, borderRightColor: color,
+                    position: "absolute",
+                    width: 76,
+                    height: 76,
+                    borderRadius: "50%",
+                    border: "3px solid transparent",
+                    borderTopColor: color,
+                    borderRightColor: color,
                   }}
                 />
               )}
 
-              {/* Name */}
-              <div style={{ fontSize: 28, fontWeight: 900, color: "#fff", letterSpacing: 2, zIndex: 1, textShadow: `0 0 20px ${color}` }}>
+              <div style={{
+                fontSize: 26,
+                fontWeight: 900,
+                color: "#fff",
+                letterSpacing: 3,
+                zIndex: 1,
+                textShadow: `0 0 24px ${color}`,
+              }}>
                 SCASI
               </div>
 
-              {/* State label */}
               <motion.div
                 key={state}
-                initial={{ opacity: 0, y: 4 }}
+                initial={{ opacity: 0, y: 5 }}
                 animate={{ opacity: 1, y: 0 }}
-                style={{ marginTop: 8, fontSize: 13, color, fontWeight: 600, letterSpacing: 1, zIndex: 1 }}
+                style={{ marginTop: 8, fontSize: 12, color, fontWeight: 600, letterSpacing: 1, zIndex: 1 }}
               >
                 {stateLabel[state]}
               </motion.div>
 
-              {/* Dismiss hint */}
-              <div style={{ position: "absolute", bottom: 14, fontSize: 10, color: "rgba(255,255,255,0.35)", zIndex: 1 }}>
+              <div style={{
+                position: "absolute", bottom: 12,
+                fontSize: 9.5, color: "rgba(255,255,255,0.3)", zIndex: 1,
+              }}>
                 tap outside to dismiss
               </div>
             </div>
 
-            {/* ── Transcript / answer text area ── */}
-            <AnimatePresence mode="wait">
-              {(transcript || answer) && (
-                <motion.div
-                  key={(transcript ?? "") + (answer ?? "")}
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -4 }}
-                  transition={{ duration: 0.22 }}
-                  style={{
-                    width: "calc(100% - 40px)",
-                    borderTop: "1px solid rgba(255,255,255,0.08)",
-                    paddingTop: 16,
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: 10,
-                  }}
-                >
-                  {/* User transcript */}
-                  {transcript && (
-                    <div style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
-                      <div style={{
-                        width: 22, height: 22, borderRadius: "50%",
-                        background: "rgba(37,99,235,0.35)",
-                        border: "1.5px solid #2563EB",
-                        display: "flex", alignItems: "center", justifyContent: "center",
-                        flexShrink: 0, marginTop: 1,
-                      }}>
-                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#2563EB" strokeWidth="2.5" strokeLinecap="round">
+            {/* ── Conversation history + live transcript ── */}
+            {hasContent && (
+              <div
+                ref={scrollRef}
+                style={{
+                  width: "100%",
+                  flex: 1,
+                  overflowY: "auto",
+                  borderTop: "1px solid rgba(255,255,255,0.07)",
+                  padding: "14px 20px 20px",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 12,
+                  scrollbarWidth: "thin",
+                  scrollbarColor: "rgba(167,139,250,0.2) transparent",
+                }}
+              >
+                {messages.map((msg, i) => (
+                  <div key={i} style={{ display: "flex", gap: 9, alignItems: "flex-start" }}>
+                    <div style={{
+                      width: 24, height: 24, borderRadius: "50%",
+                      flexShrink: 0, marginTop: 1,
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      ...(msg.role === "user"
+                        ? { background: "rgba(37,99,235,0.3)", border: "1.5px solid #2563EB" }
+                        : { background: "rgba(124,58,237,0.3)", border: "1.5px solid #7C3AED", fontSize: 9, fontWeight: 900, color: "#a78bfa" }
+                      ),
+                    }}>
+                      {msg.role === "user" ? (
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#2563EB" strokeWidth="2.5" strokeLinecap="round">
                           <rect x="9" y="2" width="6" height="12" rx="3" />
                           <path d="M5 10a7 7 0 0 0 14 0" />
                           <line x1="12" y1="19" x2="12" y2="22" />
                         </svg>
-                      </div>
-                      <div style={{
-                        fontSize: 13, color: "rgba(255,255,255,0.85)", lineHeight: 1.5,
-                        fontStyle: state === "listening" ? "italic" : "normal",
-                        flex: 1,
-                      }}>
-                        {transcript}
-                        {state === "listening" && (
-                          <motion.span
-                            animate={{ opacity: [1, 0, 1] }}
-                            transition={{ duration: 0.8, repeat: Infinity }}
-                            style={{ marginLeft: 2, color: "#2563EB" }}
-                          >|</motion.span>
-                        )}
-                      </div>
+                      ) : "S"}
                     </div>
-                  )}
+                    <div style={{
+                      fontSize: 13, lineHeight: 1.55, flex: 1,
+                      color: msg.role === "user" ? "rgba(255,255,255,0.88)" : "rgba(255,255,255,0.72)",
+                    }}>
+                      {msg.text}
+                    </div>
+                  </div>
+                ))}
 
-                  {/* Scasi answer */}
-                  {answer && (
-                    <div style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
-                      <div style={{
-                        width: 22, height: 22, borderRadius: "50%",
-                        background: "rgba(124,58,237,0.35)",
-                        border: "1.5px solid #7C3AED",
-                        display: "flex", alignItems: "center", justifyContent: "center",
-                        flexShrink: 0, marginTop: 1,
-                        fontSize: 9, fontWeight: 900, color: "#a78bfa", letterSpacing: 0.5,
-                      }}>
-                        S
-                      </div>
-                      <div style={{
-                        fontSize: 13, color: "rgba(255,255,255,0.75)", lineHeight: 1.5, flex: 1,
-                      }}>
-                        {answer}
-                      </div>
+                {/* Live interim transcript */}
+                {transcript && (
+                  <div style={{ display: "flex", gap: 9, alignItems: "flex-start" }}>
+                    <div style={{
+                      width: 24, height: 24, borderRadius: "50%",
+                      flexShrink: 0, marginTop: 1,
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      background: "rgba(37,99,235,0.3)", border: "1.5px solid #2563EB",
+                    }}>
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#2563EB" strokeWidth="2.5" strokeLinecap="round">
+                        <rect x="9" y="2" width="6" height="12" rx="3" />
+                        <path d="M5 10a7 7 0 0 0 14 0" />
+                        <line x1="12" y1="19" x2="12" y2="22" />
+                      </svg>
                     </div>
-                  )}
-                </motion.div>
-              )}
-            </AnimatePresence>
+                    <div style={{
+                      fontSize: 13, lineHeight: 1.55, flex: 1,
+                      color: "rgba(255,255,255,0.88)", fontStyle: "italic",
+                    }}>
+                      {transcript}
+                      {state === "listening" && (
+                        <motion.span
+                          animate={{ opacity: [1, 0, 1] }}
+                          transition={{ duration: 0.75, repeat: Infinity }}
+                          style={{ marginLeft: 2, color: "#2563EB", fontStyle: "normal" }}
+                        >|</motion.span>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </motion.div>
         </motion.div>
       )}

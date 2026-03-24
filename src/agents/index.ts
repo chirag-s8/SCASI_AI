@@ -3,7 +3,7 @@
  * Top-level barrel export for the entire agents layer.
  *
  * Usage:
- *   import { MailMindError, getServiceRoleClient, type Agent } from '@/src/agents';
+ *   import { ScasiError, getServiceRoleClient, type Agent } from '@/src/agents';
  */
 
 // Shared infrastructure (types, errors, supabase helpers)

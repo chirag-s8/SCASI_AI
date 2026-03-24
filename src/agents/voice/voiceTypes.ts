@@ -26,13 +26,30 @@ export interface VoiceError {
 }
 
 // ---------------------------------------------------------------------------
+// Conversation message
+// ---------------------------------------------------------------------------
+
+export interface VoiceMessage {
+  role: 'user' | 'assistant';
+  text: string;
+}
+
+// ---------------------------------------------------------------------------
 // Hook options / return
 // ---------------------------------------------------------------------------
 
 export interface VoiceControllerOptions {
   sessionId?: string;
+  emailContext?: {
+    gmailId: string;
+    subject: string;
+    from: string;
+    snippet: string;
+    body?: string;
+  };
   onTranscript?: (text: string) => void;
-  onAnswer?: (text: string) => void;
+  /** Called with the final answer text and the user's question */
+  onAnswer?: (answer: string, userText: string) => void;
   onStateChange?: (state: VoiceState) => void;
   onError?: (error: VoiceError) => void;
 }

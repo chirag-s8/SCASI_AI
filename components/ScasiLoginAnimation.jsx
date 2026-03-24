@@ -3,7 +3,7 @@
 import { motion } from "framer-motion";
 import { useEffect } from "react";
 
-export function MailMindLoginAnimation({ onComplete }) {
+export function ScasiLoginAnimation({ onComplete }) {
     useEffect(() => {
         const timer = setTimeout(() => {
             if (onComplete) onComplete();

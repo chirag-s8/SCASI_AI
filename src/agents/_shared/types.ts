@@ -1,7 +1,7 @@
 /**
  * @file src/agents/_shared/types.ts
  * Core shared types, branded primitives, and the Agent interface
- * used across ALL agent modules in the MailMind system.
+ * used across ALL agent modules in the Scasi system.
  */
 
 import { z } from 'zod';
@@ -86,10 +86,10 @@ export const ErrorCode = z.enum([
 export type ErrorCode = z.infer<typeof ErrorCode>;
 
 // ---------------------------------------------------------------------------
-// MailMindError — structured error class used throughout the agent system
+// ScasiError — structured error class used throughout the agent system
 // ---------------------------------------------------------------------------
 
-export class MailMindError extends Error {
+export class ScasiError extends Error {
     public readonly code: ErrorCode;
     public readonly traceId?: TraceId;
     public readonly details?: unknown;
@@ -102,7 +102,7 @@ export class MailMindError extends Error {
         cause?: Error;
     }) {
         super(opts.message);
-        this.name = 'MailMindError';
+        this.name = 'ScasiError';
         this.code = opts.code;
         this.traceId = opts.traceId;
         this.details = opts.details;
@@ -182,7 +182,7 @@ export interface Agent<Req, Res> {
      * Execute the agent's primary logic.
      *
      * Implementations must:
-     *  - Throw `MailMindError` (or subclasses) on failure
+     *  - Throw `ScasiError` (or subclasses) on failure
      *  - Never throw raw Error objects — always wrap them
      *  - Not mutate `ctx`
      */

@@ -1,15 +1,15 @@
 "use client";
 /**
  * @file src/agents/voice/useVoiceController.ts
- * Scasi voice session state machine — fully fixed.
+ * Scasi voice session state machine.
  *
- * Fix list:
  * 1. Live transcript shown as user speaks (interimResults + continuous)
  * 2. Callbacks in refs — never stale
- * 3. startSession speaks "Yes?" greeting before listening
- * 4. After each answer, asks "Are you done?" and waits for yes/no
+ * 3. startSession speaks short "Yeah?" greeting before listening
+ * 4. After each answer, immediately resumes listening (no closing prompt)
  * 5. Sweet female voice (Google UK English Female → Samantha → any female)
  * 6. no-speech / errors restart listening, never kill session
+ * 7. User can say "bye", "done", etc. to end session naturally
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -23,9 +23,8 @@ import { truncateToWords } from './voiceUtils';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-const GREETING        = "Yes? How can I help you?";
-const CLOSING_PROMPT  = "Are you done, or is there anything else I can help you with?";
-const CLOSING_FAREWELL = "Alright! Have a wonderful day. Goodbye!";
+const GREETING        = "Yeah?";
+const CLOSING_FAREWELL = "Happy to help! Have a great day.";
 const MAX_TTS_WORDS   = 500;
 const SILENCE_TIMEOUT = 20000;
 
@@ -34,7 +33,7 @@ const DONE_PHRASES = new Set([
   "yes i'm done", 'i am done', 'im done', "that's all", 'thats all',
   "that's it", 'thats it', 'goodbye', 'bye', 'good bye', 'bye bye',
   'nothing else', 'nothing more', "i'm good", 'im good', 'all good',
-  'all set', "i'm all set", 'no', 'nope', 'no thanks', 'no thank you',
+  'all set', "i'm all set", 'no thanks', 'no thank you',
   'stop', 'end', 'exit', 'quit', 'close',
 ]);
 
@@ -78,26 +77,28 @@ export function useVoiceController(options: VoiceControllerOptions = {}): VoiceC
   const recRef    = useRef<any>(null);
   const timerRef  = useRef<ReturnType<typeof setTimeout> | null>(null);
   const activeRef = useRef(false);
-  const awaitingDoneRef = useRef(false);
 
   // Stable callback refs — never stale inside closures
-  const cbTranscript  = useRef(options.onTranscript);
-  const cbAnswer      = useRef(options.onAnswer);
-  const cbStateChange = useRef(options.onStateChange);
-  const cbError       = useRef(options.onError);
-  const sessionIdRef  = useRef(options.sessionId);
+  const cbTranscript    = useRef(options.onTranscript);
+  const cbAnswer        = useRef(options.onAnswer);
+  const cbStateChange   = useRef(options.onStateChange);
+  const cbError         = useRef(options.onError);
+  const sessionIdRef    = useRef(options.sessionId);
+  const emailContextRef = useRef(options.emailContext);
 
   useEffect(() => {
-    cbTranscript.current  = options.onTranscript;
-    cbAnswer.current      = options.onAnswer;
-    cbStateChange.current = options.onStateChange;
-    cbError.current       = options.onError;
-    sessionIdRef.current  = options.sessionId;
+    cbTranscript.current    = options.onTranscript;
+    cbAnswer.current        = options.onAnswer;
+    cbStateChange.current   = options.onStateChange;
+    cbError.current         = options.onError;
+    sessionIdRef.current    = options.sessionId;
+    emailContextRef.current = options.emailContext;
   });
 
+  // Lazy check at call time — avoids SSR false-negative (window is undefined on server)
   const isSupported = {
-    stt: getSpeechRecognitionCtor() !== null,
-    tts: isTTSSupported(),
+    get stt() { return getSpeechRecognitionCtor() !== null; },
+    get tts() { return isTTSSupported(); },
   };
 
   const setVoiceState = useCallback((s: VoiceState) => {
@@ -110,7 +111,6 @@ export function useVoiceController(options: VoiceControllerOptions = {}): VoiceC
     cbError.current?.(error);
     setVoiceState('idle');
     activeRef.current = false;
-    awaitingDoneRef.current = false;
   }, [setVoiceState]);
 
   // ── TTS ───────────────────────────────────────────────────────────────────
@@ -126,8 +126,9 @@ export function useVoiceController(options: VoiceControllerOptions = {}): VoiceC
         utt.rate   = 1.0;
         utt.pitch  = 1.15;
         utt.volume = 1.0;
-        utt.onend  = () => resolve();
-        utt.onerror = () => resolve();
+        const safetyTimeout = setTimeout(() => { window.speechSynthesis.cancel(); resolve(); }, 30_000);
+        utt.onend  = () => { clearTimeout(safetyTimeout); resolve(); };
+        utt.onerror = () => { clearTimeout(safetyTimeout); resolve(); };
         window.speechSynthesis.speak(utt);
       };
 
@@ -149,7 +150,6 @@ export function useVoiceController(options: VoiceControllerOptions = {}): VoiceC
     if (isTTSSupported()) window.speechSynthesis.cancel();
     if (activeRef.current) setVoiceState('idle');
     activeRef.current = false;
-    awaitingDoneRef.current = false;
   }, [setVoiceState]);
 
   // ── STT helpers ───────────────────────────────────────────────────────────
@@ -172,26 +172,33 @@ export function useVoiceController(options: VoiceControllerOptions = {}): VoiceC
 
     cbTranscript.current?.(text);
 
-    // Waiting for "are you done?" answer
-    if (awaitingDoneRef.current) {
-      awaitingDoneRef.current = false;
-      if (isDone(text)) {
-        setVoiceState('speaking');
-        await speak(CLOSING_FAREWELL);
-        setVoiceState('idle');
-        activeRef.current = false;
-        return;
-      }
-      // Not done — fall through and treat as new question
+    // Check if user wants to end session
+    if (isDone(text)) {
+      setVoiceState('speaking');
+      await speak(CLOSING_FAREWELL);
+      setVoiceState('idle');
+      activeRef.current = false;
+      return;
     }
 
     setVoiceState('processing');
 
     try {
+      const emailCtx = emailContextRef.current;
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userMessage: text, sessionId: sessionIdRef.current }),
+        body: JSON.stringify({
+          userMessage: text,
+          sessionId: sessionIdRef.current,
+          emailContext: emailCtx ? {
+            gmailId: emailCtx.gmailId,
+            subject: emailCtx.subject,
+            from: emailCtx.from,
+            snippet: emailCtx.snippet,
+            body: emailCtx.body,
+          } : undefined,
+        }),
       });
 
       if (!res.ok) throw new Error(`Chat API error: ${res.status}`);
@@ -218,29 +225,36 @@ export function useVoiceController(options: VoiceControllerOptions = {}): VoiceC
         }
       }
 
-      if (!answer) answer = "I'm sorry, I couldn't get a response. Please try again.";
-      cbAnswer.current?.(answer);
+      if (!answer) answer = "Sorry, I couldn't get a response. Could you try asking again?";
+      cbAnswer.current?.(answer, text);
       if (!activeRef.current) return;
 
       setVoiceState('speaking');
       await speak(answer);
       if (!activeRef.current) return;
 
-      // Ask if done and wait for response
-      awaitingDoneRef.current = true;
-      await speak(CLOSING_PROMPT);
+      startListening();
+    } catch (err) {
+      const errMsg = err instanceof Error ? err.message : 'Unknown error';
+      cbError.current?.({
+        code: 'ORCHESTRATOR_ERROR',
+        message: errMsg,
+      });
+      if (!activeRef.current) return;
+
+      const spokenError = "Sorry, I ran into an issue. Could you try asking again?";
+      cbAnswer.current?.(spokenError, text);
+      setVoiceState('speaking');
+      await speak(spokenError);
       if (!activeRef.current) return;
 
       startListening();
-    } catch (err) {
-      emitError({
-        code: 'ORCHESTRATOR_ERROR',
-        message: err instanceof Error ? err.message : 'Unknown error',
-      });
     }
-  }, [speak, setVoiceState, emitError, startListening]);
+  }, [speak, setVoiceState, startListening]);
 
   // ── Core listening loop ───────────────────────────────────────────────────
+  // Uses non-continuous mode + fresh instance per utterance — most reliable
+  // across Chrome/Edge. Continuous mode causes silent failures on onend.
   useEffect(() => {
     startListeningRef.current = () => {
       if (!activeRef.current) return;
@@ -255,12 +269,14 @@ export function useVoiceController(options: VoiceControllerOptions = {}): VoiceC
       setVoiceState('listening');
 
       const rec = new Ctor();
-      rec.continuous      = true;
+      // Non-continuous: fires onend after each utterance — far more reliable
+      rec.continuous      = false;
       rec.interimResults  = true;
       rec.lang            = 'en-US';
       rec.maxAlternatives = 1;
       recRef.current = rec;
 
+      // Silence watchdog — restart if no speech detected within timeout
       const resetTimer = () => {
         if (timerRef.current) clearTimeout(timerRef.current);
         timerRef.current = setTimeout(() => {
@@ -272,43 +288,67 @@ export function useVoiceController(options: VoiceControllerOptions = {}): VoiceC
       };
       resetTimer();
 
-      rec.onresult = (event: any) => {
-        resetTimer();
-        const result = event.results[event.results.length - 1];
-        const text: string = result[0].transcript;
+      let finalTranscript = '';
 
-        if (result.isFinal) {
-          // Stop recognition before processing to avoid TTS/STT conflict
-          stopRecognition();
-          processTranscript(text);
-        } else {
-          // Live interim display
-          cbTranscript.current?.(text);
+      rec.onresult = (event: any) => {
+        console.log('[Voice] onresult fired, results:', event.results.length);
+        resetTimer();
+        let interim = '';
+        finalTranscript = '';
+        for (let i = 0; i < event.results.length; i++) {
+          const t: string = event.results[i][0].transcript;
+          console.log(`[Voice] Result ${i}: "${t}" (final: ${event.results[i].isFinal})`);
+          if (event.results[i].isFinal) {
+            finalTranscript += t;
+          } else {
+            interim += t;
+          }
+        }
+        // Show live interim text
+        if (interim) {
+          console.log('[Voice] Showing interim:', interim);
+          cbTranscript.current?.(interim);
         }
       };
 
       rec.onerror = (event: any) => {
+        // 'aborted' fires when we call rec.abort() intentionally — not a real error
+        if (event.error === 'aborted') return;
+        console.error('[Voice] onerror:', event.error, event);
         if (timerRef.current) { clearTimeout(timerRef.current); timerRef.current = null; }
         if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
           emitError({ code: 'MIC_DENIED', message: 'Microphone access denied. Please allow mic in your browser settings.' });
           return;
         }
+        // no-speech / network / audio-capture — restart fresh instance
         if (activeRef.current && stateRef.current === 'listening') {
-          setTimeout(() => { if (activeRef.current) startListeningRef.current(); }, 500);
+          console.log('[Voice] Restarting after error:', event.error);
+          setTimeout(() => { if (activeRef.current) startListeningRef.current(); }, 400);
         }
       };
 
       rec.onend = () => {
-        if (stateRef.current === 'listening' && activeRef.current) {
-          try { rec.start(); } catch {
-            setTimeout(() => { if (activeRef.current) startListeningRef.current(); }, 300);
-          }
+        console.log('[Voice] onend fired, finalTranscript:', finalTranscript);
+        if (timerRef.current) { clearTimeout(timerRef.current); timerRef.current = null; }
+        recRef.current = null;
+        if (!activeRef.current) return;
+
+        if (finalTranscript.trim()) {
+          // Got speech — process it
+          console.log('[Voice] Processing transcript:', finalTranscript.trim());
+          processTranscript(finalTranscript.trim());
+        } else if (stateRef.current === 'listening') {
+          // No speech captured — restart listening with a fresh instance
+          console.log('[Voice] No speech, restarting...');
+          setTimeout(() => { if (activeRef.current) startListeningRef.current(); }, 150);
         }
       };
 
       try {
+        console.log('[Voice] Starting recognition...');
         rec.start();
-      } catch {
+      } catch (err) {
+        console.error('[Voice] Failed to start:', err);
         emitError({ code: 'STT_UNSUPPORTED', message: 'Failed to start speech recognition' });
       }
     };
@@ -317,23 +357,27 @@ export function useVoiceController(options: VoiceControllerOptions = {}): VoiceC
   // ── Public API ────────────────────────────────────────────────────────────
   const startSession = useCallback(async () => {
     if (activeRef.current) return;
-    if (!isSupported.stt) {
+    // Lazy check — safe to call after hydration
+    if (!getSpeechRecognitionCtor()) {
       emitError({ code: 'STT_UNSUPPORTED', message: 'Voice not supported. Use Chrome or Edge.' });
       return;
     }
     activeRef.current = true;
-    awaitingDoneRef.current = false;
+
+    // Brief pause so the wake-word listener can fully release the mic
+    // before we open a new SpeechRecognition instance.
+    await new Promise(r => setTimeout(r, 800));
+    if (!activeRef.current) return;
 
     // Greet first, then listen
     setVoiceState('speaking');
     await speak(GREETING);
     if (!activeRef.current) return;
     startListeningRef.current();
-  }, [isSupported.stt, emitError, speak, setVoiceState]);
+  }, [emitError, speak, setVoiceState]);
 
   const stopSession = useCallback(() => {
     activeRef.current = false;
-    awaitingDoneRef.current = false;
     stopRecognition();
     if (isTTSSupported()) window.speechSynthesis.cancel();
     setVoiceState('idle');
