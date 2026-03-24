@@ -291,64 +291,50 @@ export function useVoiceController(options: VoiceControllerOptions = {}): VoiceC
       let finalTranscript = '';
 
       rec.onresult = (event: any) => {
-        console.log('[Voice] onresult fired, results:', event.results.length);
         resetTimer();
         let interim = '';
         finalTranscript = '';
         for (let i = 0; i < event.results.length; i++) {
           const t: string = event.results[i][0].transcript;
-          console.log(`[Voice] Result ${i}: "${t}" (final: ${event.results[i].isFinal})`);
           if (event.results[i].isFinal) {
             finalTranscript += t;
           } else {
             interim += t;
           }
         }
-        // Show live interim text
-        if (interim) {
-          console.log('[Voice] Showing interim:', interim);
-          cbTranscript.current?.(interim);
-        }
+        if (interim) cbTranscript.current?.(interim);
       };
 
       rec.onerror = (event: any) => {
         // 'aborted' fires when we call rec.abort() intentionally — not a real error
-        if (event.error === 'aborted') return;
-        console.error('[Voice] onerror:', event.error, event);
+        // 'no-speech' fires when mic times out with no audio — also not a real error
+        if (event.error === 'aborted' || event.error === 'no-speech') return;
         if (timerRef.current) { clearTimeout(timerRef.current); timerRef.current = null; }
         if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
           emitError({ code: 'MIC_DENIED', message: 'Microphone access denied. Please allow mic in your browser settings.' });
           return;
         }
-        // no-speech / network / audio-capture — restart fresh instance
+        // network / audio-capture — restart fresh instance
         if (activeRef.current && stateRef.current === 'listening') {
-          console.log('[Voice] Restarting after error:', event.error);
           setTimeout(() => { if (activeRef.current) startListeningRef.current(); }, 400);
         }
       };
 
       rec.onend = () => {
-        console.log('[Voice] onend fired, finalTranscript:', finalTranscript);
         if (timerRef.current) { clearTimeout(timerRef.current); timerRef.current = null; }
         recRef.current = null;
         if (!activeRef.current) return;
 
         if (finalTranscript.trim()) {
-          // Got speech — process it
-          console.log('[Voice] Processing transcript:', finalTranscript.trim());
           processTranscript(finalTranscript.trim());
         } else if (stateRef.current === 'listening') {
-          // No speech captured — restart listening with a fresh instance
-          console.log('[Voice] No speech, restarting...');
           setTimeout(() => { if (activeRef.current) startListeningRef.current(); }, 150);
         }
       };
 
       try {
-        console.log('[Voice] Starting recognition...');
         rec.start();
       } catch (err) {
-        console.error('[Voice] Failed to start:', err);
         emitError({ code: 'STT_UNSUPPORTED', message: 'Failed to start speech recognition' });
       }
     };
