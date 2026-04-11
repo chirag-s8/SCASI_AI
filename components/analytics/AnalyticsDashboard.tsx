@@ -66,9 +66,18 @@ function MetricCard({ title, value, change, icon: Icon, color, loading }: any) {
   );
 }
 
+interface EmailRecord {
+  id?: string;
+  date?: string | number;
+  subject?: string;
+  snippet?: string;
+  from?: string;
+  body?: string;
+}
+
 export default function AnalyticsDashboard() {
-  const [allEmails, setAllEmails] = useState<any[]>([]);
-  const [filteredEmails, setFilteredEmails] = useState<any[]>([]);
+  const [allEmails, setAllEmails] = useState<EmailRecord[]>([]);
+  const [filteredEmails, setFilteredEmails] = useState<EmailRecord[]>([]);
   const [timeRange, setTimeRange] = useState('30D');
 
   const [emailsPerDay, setEmailsPerDay] = useState(MOCK_emailsPerDay);
@@ -181,7 +190,7 @@ export default function AnalyticsDashboard() {
     // 3. Process Categories
     let p=0, s=0, pr=0, u=0;
 
-    validEmails.forEach((e: any) => {
+    validEmails.forEach((e: EmailRecord) => {
       let dStr = e.date;
       if (typeof dStr === 'string' && /^\d{13}$/.test(dStr)) dStr = Number(dStr);
       const d = new Date(dStr);

@@ -31,8 +31,8 @@ Output EXACTLY in this format (no extra sections):
 📅 **Today's Tasks**
 → [Specific action from an actual email]
 
-💬 **Quick Wins** _(optional, max 2 items that can be 1-click handled)_
-→ [e.g., Archive newsletter from X]`;
+💬 **Quick Wins** _(optional, max 2 — low-effort emails that need a 1-click action)_
+→ [Short action]`;
 
 
         const encoder = new TextEncoder();

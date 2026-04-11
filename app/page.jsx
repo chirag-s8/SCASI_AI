@@ -1136,7 +1136,7 @@ export default function Home() {
     if (!mail) return { isPhishing: false, score: 0, reasons: [] };
     const subject = (mail.subject || "").toLowerCase();
     const snippet = (mail.snippet || "").toLowerCase();
-    const body    = (mail.body    || "").toLowerCase();
+    const body    = (mail.body    || "").slice(0, 5000).toLowerCase(); // cap to avoid slow regex on large HTML
     const from    = (mail.from    || "").toLowerCase();
     const text = subject + " " + snippet + " " + body;
 
