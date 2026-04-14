@@ -5,6 +5,7 @@ interface ProviderLimits {
 
 const DEFAULT_LIMITS: Record<string, ProviderLimits> = {
     GROQ_API_KEY:                  { rpm: 30,  tpm: 150_000 },
+    SARVAM_API_KEY:                { rpm: 60,  tpm: 200_000 },
     OPENROUTER_API_KEY_GPT_OSS:    { rpm: 200, tpm: 1_000_000 },
     OPENROUTER_API_KEY_NEMOTRON:   { rpm: 200, tpm: 1_000_000 },
     OPENROUTER_API_KEY_QWEN3:      { rpm: 200, tpm: 1_000_000 },

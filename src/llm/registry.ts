@@ -4,6 +4,7 @@ import { ModelConfig, ModelProvider } from './types';
  * API Key → Model Group assignments:
  *
  * GROQ_API_KEY                    → Llama 3.1 8B, Llama 3.3 70B       (real-time / fast tasks)
+ * SARVAM_API_KEY                  → Sarvam-2B, Sarvam-M               (primary: route / reply, multilingual)
  * OPENROUTER_API_KEY_GPT_OSS      → GPT-OSS 120B, Gemma 3 27B, Llama 3.3 70B Instruct  (extraction / summarization / reranking)
  * GEMINI_API_KEY                   → gemini-embedding-001  (embeddings, free tier)
  * OPENROUTER_API_KEY_NEMOTRON     → Nemotron 30B, Qwen3 Coder, Qwen3 Next 80B  (classification / lightweight routing)
@@ -23,6 +24,20 @@ export const MODELS = {
         id: 'llama-3.3-70b-versatile',
         provider: 'groq' as ModelProvider,
         apiKeyEnv: 'GROQ_API_KEY',
+        contextWindow: 32768,
+    },
+
+    // ── Sarvam Models (SARVAM_API_KEY) — primary alongside Groq ────────
+    SARVAM_2B: {
+        id: 'sarvam-2b-v0.5',
+        provider: 'sarvam' as ModelProvider,
+        apiKeyEnv: 'SARVAM_API_KEY',
+        contextWindow: 4096,
+    },
+    SARVAM_M: {
+        id: 'sarvam-m',
+        provider: 'sarvam' as ModelProvider,
+        apiKeyEnv: 'SARVAM_API_KEY',
         contextWindow: 32768,
     },
 

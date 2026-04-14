@@ -10,7 +10,7 @@ export type LLMTaskType =
     | 'judge'
     | 'embed';
 
-export type ModelProvider = 'groq' | 'openrouter' | 'google' | 'local';
+export type ModelProvider = 'groq' | 'openrouter' | 'google' | 'local' | 'sarvam';
 
 export interface ModelConfig {
     id: string; // The specific string used by the provider

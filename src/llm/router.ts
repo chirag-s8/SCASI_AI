@@ -162,6 +162,40 @@ export class LLMRouter {
                             completionTokens: rawUsage.completion_tokens,
                             totalTokens: rawUsage.total_tokens
                         };
+                    } else if (model.provider === 'sarvam') {
+                        const apiKey = this.getApiKey(model);
+                        const body: Record<string, unknown> = {
+                            model: model.id,
+                            messages: [
+                                ...(options.systemPrompt ? [{ role: 'system', content: options.systemPrompt }] : []),
+                                { role: 'user', content: fullPrompt }
+                            ],
+                            temperature: options.temperature ?? 0.7,
+                            max_tokens: options.maxTokens,
+                        };
+
+                        const resp = await fetch('https://api.sarvam.ai/v1/chat/completions', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'api-subscription-key': apiKey,
+                            },
+                            body: JSON.stringify(body)
+                        });
+
+                        if (!resp.ok) {
+                            const errBody = await resp.text();
+                            throw new Error(`Sarvam Error: ${resp.status} ${errBody}`);
+                        }
+
+                        const data = await resp.json();
+                        resultText = data.choices[0]?.message?.content || '';
+                        const rawUsage = data.usage || { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 };
+                        usage = {
+                            promptTokens: rawUsage.prompt_tokens,
+                            completionTokens: rawUsage.completion_tokens,
+                            totalTokens: rawUsage.total_tokens
+                        };
                     }
 
                     rateLimiter.recordActualTokens(model.apiKeyEnv, usage.totalTokens, estTokens);
@@ -298,6 +332,58 @@ export class LLMRouter {
 
             if (!resp.ok) throw new Error(`OpenRouter Stream Error: ${resp.status}`);
             if (!resp.body) throw new Error('No body returned from streaming API');
+
+            const reader = resp.body.getReader();
+            const decoder = new TextDecoder('utf-8');
+            let buffer = '';
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+
+                buffer += decoder.decode(value, { stream: true });
+                let boundary = buffer.indexOf('\n');
+
+                while (boundary !== -1) {
+                    const line = buffer.slice(0, boundary).trim();
+                    buffer = buffer.slice(boundary + 1);
+                    boundary = buffer.indexOf('\n');
+
+                    if (line.startsWith('data: ')) {
+                        const dataStr = line.slice(6).trim();
+                        if (dataStr === '[DONE]') return;
+                        try {
+                            const data = JSON.parse(dataStr);
+                            const content = data.choices[0]?.delta?.content || '';
+                            if (content) { onToken(content); yield content; }
+                        } catch {
+                            // Incomplete SSE chunk, skip
+                        }
+                    }
+                }
+            }
+        } else if (model.provider === 'sarvam') {
+            const apiKey = this.getApiKey(model);
+            const resp = await fetch('https://api.sarvam.ai/v1/chat/completions', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'api-subscription-key': apiKey,
+                },
+                body: JSON.stringify({
+                    model: model.id,
+                    messages: [
+                        ...(options.systemPrompt ? [{ role: 'system', content: options.systemPrompt }] : []),
+                        { role: 'user', content: prompt }
+                    ],
+                    temperature: options.temperature ?? 0.7,
+                    max_tokens: options.maxTokens,
+                    stream: true
+                })
+            });
+
+            if (!resp.ok) throw new Error(`Sarvam Stream Error: ${resp.status}`);
+            if (!resp.body) throw new Error('No body returned from Sarvam streaming API');
 
             const reader = resp.body.getReader();
             const decoder = new TextDecoder('utf-8');

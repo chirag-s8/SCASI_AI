@@ -4,9 +4,9 @@ import { MODELS } from './registry';
 /*
  * Task → Model assignment (each API key has dedicated responsibilities):
  *
- * GROQ_API_KEY  (fast, real-time)
- *   route   → primary: Llama 3.1 8B      fallback: Nemotron 30B
- *   reply   → primary: Llama 3.3 70B      fallback: GPT-OSS 120B
+ * GROQ_API_KEY + SARVAM_API_KEY  (fast, real-time — both primary)
+ *   route   → primary: Sarvam 2B           fallback: Groq Llama 3.1 8B → Nemotron 30B
+ *   reply   → primary: Sarvam M            fallback: Groq Llama 3.3 70B → GPT-OSS 120B
  *
  * OPENROUTER_API_KEY_GPT_OSS  (heavy extraction / summarisation / ranking)
  *   extract   → primary: GPT-OSS 120B     fallback: Groq Llama 3.3 70B
@@ -29,8 +29,8 @@ import { MODELS } from './registry';
 export const taskPolicies: Record<LLMTaskType, TaskModelPolicy> = {
     route: {
         task: 'route',
-        primary: MODELS.GROQ_LLAMA_3_1_8B,
-        fallbackChain: [MODELS.OR_NEMOTRON_30B],
+        primary: MODELS.SARVAM_2B,
+        fallbackChain: [MODELS.GROQ_LLAMA_3_1_8B, MODELS.OR_NEMOTRON_30B],
     },
     classify: {
         task: 'classify',
@@ -49,8 +49,8 @@ export const taskPolicies: Record<LLMTaskType, TaskModelPolicy> = {
     },
     reply: {
         task: 'reply',
-        primary: MODELS.GROQ_LLAMA_3_3_70B,
-        fallbackChain: [MODELS.OR_GPT_OSS_120B, MODELS.OR_HUNTER_ALPHA],
+        primary: MODELS.SARVAM_M,
+        fallbackChain: [MODELS.GROQ_LLAMA_3_3_70B, MODELS.OR_GPT_OSS_120B, MODELS.OR_HUNTER_ALPHA],
     },
     rerank: {
         task: 'rerank',

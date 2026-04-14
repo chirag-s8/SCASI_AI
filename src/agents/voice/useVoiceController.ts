@@ -19,7 +19,7 @@ import type {
   VoiceError,
   VoiceState,
 } from './voiceTypes';
-import { truncateToWords } from './voiceUtils';
+import { truncateToWords, cleanForSpeech } from './voiceUtils';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -35,11 +35,16 @@ const DONE_PHRASES = new Set([
   'nothing else', 'nothing more', "i'm good", 'im good', 'all good',
   'all set', "i'm all set", 'no thanks', 'no thank you',
   'stop', 'end', 'exit', 'quit', 'close',
+  'thank you', 'thanks', 'thank you so much', 'thanks a lot',
+  'thank you very much', 'thanks so much', 'cheers', 'great thanks',
+  'perfect thanks', 'awesome thanks', 'got it thanks', 'got it thank you',
 ]);
 
 function isDone(text: string): boolean {
   const n = text.toLowerCase().trim().replace(/[.,!?;:]+$/, '');
-  return DONE_PHRASES.has(n);
+  if (DONE_PHRASES.has(n)) return true;
+  // Catch prefixed variants: "ok thank you", "oh thanks", "alright bye", etc.
+  return /\b(thank\s*you|thanks|bye|goodbye|that'?s?\s*(all|it)|all\s*(good|set)|i'?m?\s*(done|good|all\s*set))\b/.test(n);
 }
 
 function getSpeechRecognitionCtor(): (new () => any) | null {
@@ -226,11 +231,14 @@ export function useVoiceController(options: VoiceControllerOptions = {}): VoiceC
       }
 
       if (!answer) answer = "Sorry, I couldn't get a response. Could you try asking again?";
+      // Strip any leaked think tags before speaking
+      answer = answer.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+      if (!answer) answer = "Sorry, I couldn't get a response. Could you try asking again?";
       cbAnswer.current?.(answer, text);
       if (!activeRef.current) return;
 
       setVoiceState('speaking');
-      await speak(answer);
+      await speak(cleanForSpeech(answer));
       if (!activeRef.current) return;
 
       startListening();
