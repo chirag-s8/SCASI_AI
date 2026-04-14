@@ -91,7 +91,11 @@ function ScasiDashboard({ onNavigate, session, emailCount, loadingEmails, emails
             const c = document.getElementById("mm-palRes");
             if (!c) return;
             if (!items.length) {
-                c.innerHTML = '<div style="padding:22px;text-align:center;font-size:11.5px;color:var(--mm-text3)">No results found</div>';
+                c.textContent = '';
+                const empty = document.createElement('div');
+                empty.style.cssText = 'padding:22px;text-align:center;font-size:11.5px;color:var(--mm-text3)';
+                empty.textContent = 'No results found';
+                c.appendChild(empty);
                 return;
             }
             let h = "", last = "";
@@ -102,6 +106,7 @@ function ScasiDashboard({ onNavigate, session, emailCount, loadingEmails, emails
                 }
                 h += `<div class="mm-pal-it${i === pi ? " mm-hi" : ""}" onclick="document.getElementById('mm-pal').classList.remove('mm-open')">${it.i}<span class="mm-pal-il">${it.l}</span>${it.d ? `<span class="mm-pal-id">${it.d}</span>` : ""}</div>`;
             });
+            // SAFETY: all data in `h` originates from the hardcoded ITEMS constant — no user input
             c.innerHTML = h;
         }
 

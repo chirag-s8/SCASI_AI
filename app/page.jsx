@@ -452,6 +452,7 @@ export default function Home() {
           messageId: selectedMail.messageId || "",
         }),
       });
+      if (!res.ok) throw new Error(`Send API error: ${res.status}`);
       const data = await res.json();
       
       console.log("📬 Send response:", data);
@@ -476,18 +477,22 @@ export default function Home() {
   const [triageLoading, setTriageLoading] = useState(false);
   const [triageStep, setTriageStep] = useState(0); 
   const [triageResultBody, setTriageResultBody] = useState(null);
+  const [triageCollapsed, setTriageCollapsed] = useState(false);
+  const [hfmData, setHfmData] = useState(null);
+  const [safeIds, setSafeIds] = useState([]);
+  const [reportedIds, setReportedIds] = useState([]);
   // ⭐ Starred Emails
   const [starredIds, setStarredIds] = useState(() => {
     if (typeof window === "undefined") return [];
     const saved = localStorage.getItem("starredIds");
-    return saved ? JSON.parse(saved) : [];
+    try { return saved ? JSON.parse(saved) : []; } catch { return []; }
   });
 
   // ⏳ Snoozed Emails (hidden temporarily)
   const [snoozedIds, setSnoozedIds] = useState(() => {
     if (typeof window === "undefined") return [];
     const saved = localStorage.getItem("snoozedIds");
-    return saved ? JSON.parse(saved) : [];
+    try { return saved ? JSON.parse(saved) : []; } catch { return []; }
   });
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -498,7 +503,7 @@ export default function Home() {
   const [doneIds, setDoneIds] = useState(() => {
     if (typeof window === "undefined") return [];
     const saved = localStorage.getItem("doneIds");
-    return saved ? JSON.parse(saved) : [];
+    try { return saved ? JSON.parse(saved) : []; } catch { return []; }
   });
 
   // ── MODIFIED: activeFolder now initialises from the value set by Scasi inbox nav ──
@@ -573,6 +578,7 @@ export default function Home() {
           question: geminiQuestion || "Summarize this email clearly",
         }),
       });
+      if (!res.ok) throw new Error(`Gemini API error: ${res.status}`);
       const data = await res.json();
       if (data.reply) {
         setGeminiReply(data.reply);
@@ -607,9 +613,11 @@ export default function Home() {
 
   const loadEmails = async () => {
     setLoading(true);
+    try {
     const res = await fetch(
       `/api/gmail${nextPageToken ? `?pageToken=${nextPageToken}` : ""}`
     );
+    if (!res.ok) { console.error(`Gmail API error: ${res.status}`); setLoading(false); return; }
     const data = await res.json();
     // Best-effort persistence to Supabase (keeps existing UI flow intact)
     if (data?.emails?.length) {
@@ -637,6 +645,9 @@ export default function Home() {
       return unique;
     });
     setNextPageToken(data.nextPageToken || null);
+    } catch (err) {
+      console.error("❌ Error loading emails:", err);
+    }
     setLoading(false);
   };
 
@@ -649,9 +660,11 @@ export default function Home() {
     setDeadline(null);
     setUrgency("");
     setHandleForMeResult("");
+    setHfmData(null);
     setLoadingHandleForMe(false);
     setReplySent(false);
     const res = await fetch(`/api/gmail/message?id=${id}`);
+    if (!res.ok) { console.error(`Email detail API error: ${res.status}`); return; }
     const fullEmailData = await res.json();
     setSelectedMail(fullEmailData);
     const combinedText =
@@ -720,27 +733,45 @@ export default function Home() {
       if (!collected) {
         setHandleForMeResult("No response generated. Please try again.");
       } else {
-        // Parse the markdown string into the beautiful Premium Insights UI!
-        const sumMatch = collected.match(/\*\*Summary:\*\*\s*([\s\S]+?)(?=\*\*|$)/);
-        const reasonMatch = collected.match(/\*\*Reason:\*\*\s*([\s\S]+?)(?=\*\*|$)/);
-        
-        let draftBody = collected;
-        const draftHeadingMatch = collected.match(/\*\*Draft Reply:\*\*\s*\n+([\s\S]+?)(?=\n{0,2}⚠️|$)/);
-        if (draftHeadingMatch) {
-          draftBody = draftHeadingMatch[1].trim();
-        } else {
-          const greetingMatch = collected.match(/(?:^|\n)((?:Dear|Hi|Hello|Good\s+\w+)[\s\S]+?)(?=\n{0,2}⚠️|$)/i);
-          if (greetingMatch) draftBody = greetingMatch[1].trim();
+        // Parse structured fields from orchestrator output
+        const catMatch = collected.match(/\*\*Category:\*\*\s*(\w+)\s*\(Priority:\s*(\d+)\/100\)/);
+        const reasonMatch = collected.match(/\*\*Reason:\*\*\s*(.+?)(?=\n\*\*|\n\n|$)/s);
+        const sumMatch = collected.match(/\*\*Summary:\*\*\s*(.+?)(?=\n\*\*|\n\n|$)/s);
+        const deadlineMatch = collected.match(/\*\*Deadline:\*\*\s*(.+?)(?=\n|$)/);
+        const tasksSection = collected.match(/\*\*Tasks:\*\*\s*\n([\s\S]+?)(?=\n\n\*\*|$)/);
+        const draftMatch = collected.match(/\*\*Draft Reply:\*\*\s*\n+([\s\S]+?)(?=\n{0,2}⚠️|\n{0,2}🔔|$)/);
+        const followUpMatch = collected.match(/🔔\s*\*\*Follow-up tracked\*\*\s*—\s*detected signal:\s*"(.+?)"/);
+
+        const tasks = [];
+        if (tasksSection) {
+          for (const line of tasksSection[1].split('\n')) {
+            const cleaned = line.replace(/^[•\-]\s*/, '').trim();
+            if (cleaned && cleaned !== 'No specific tasks detected.') tasks.push(cleaned);
+          }
         }
-        draftBody = draftBody
-          .replace(/⚠️[^\n]*/g, "")
-          .replace(/(Dear\s+.*?,|Hi\s+.*?,|Hello\s+.*?,|Greetings\s+.*?,)\s*/gi, "$1\n\n")
-          .replace(/\s*(Best regards,|Sincerely,|Thanks,|Warm regards,|Cheers,|Yours truly,)/gi, "\n\n$1\n")
-          .trim();
+
+        let draftReply = '';
+        if (draftMatch) {
+          draftReply = draftMatch[1].trim()
+            .replace(/⚠️[^\n]*/g, '').replace(/🔔[^\n]*/g, '')
+            .replace(/(Dear\s+.*?,|Hi\s+.*?,|Hello\s+.*?,|Greetings\s+.*?,)\s*/gi, '$1\n\n')
+            .replace(/\s*(Best regards,|Sincerely,|Thanks,|Warm regards,|Cheers,|Yours truly,)/gi, '\n\n$1\n')
+            .trim();
+        }
+
+        setHfmData({
+          category: catMatch ? catMatch[1] : null,
+          priority: catMatch ? parseInt(catMatch[2]) : null,
+          reason: reasonMatch ? reasonMatch[1].trim() : null,
+          summary: sumMatch ? sumMatch[1].trim() : null,
+          deadline: deadlineMatch ? deadlineMatch[1].trim() : null,
+          tasks,
+          followUp: followUpMatch ? followUpMatch[1] : null,
+        });
 
         if (sumMatch) setAiSummary(sumMatch[1].trim());
         if (reasonMatch) setAiReason(reasonMatch[1].trim());
-        setHandleForMeResult(draftBody);
+        setHandleForMeResult(draftReply || collected);
       }
     } catch (err) {
       console.error("Handle For Me error:", err);
@@ -752,43 +783,39 @@ export default function Home() {
   async function runInboxTriage() {
     setTriageLoading(true);
     setTriageResultBody(null);
-    setTriageStep(1); // Scanning
+    setTriageStep(1);
     try {
-      await new Promise(r => setTimeout(r, 600)); 
       if (filteredEmails.length === 0) {
-        setTriageResultBody("🎉 **Inbox Zero!**\n\nYou're all caught up. No urgent tasks or replies needed.");
-        setTriageStep(0);
+        setTriageResultBody("inbox_zero");
         setTriageLoading(false);
+        setTriageStep(0);
         return;
       }
-      setTriageStep(2); // Identifying urgent
       const emailsTarget = filteredEmails.slice(0, 15);
-      const combinedSnippets = emailsTarget.map(m => `Subject: ${m.subject}\nSnippet:${m.snippet}`).join("\n\n");
+      const combinedSnippets = emailsTarget.map((m, i) =>
+        `Email ${i + 1}:\nFrom: ${m.from || "Unknown"}\nSubject: ${m.subject}\nSnippet: ${m.snippet}`
+      ).join("\n\n---\n\n");
+      setTriageStep(2);
       const res = await fetch("/api/ai/triage", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ emails: combinedSnippets.slice(0, 8000) })
+        body: JSON.stringify({ emails: combinedSnippets.slice(0, 12000) }),
       });
-      setTriageStep(3); // Generating briefing
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let collected = "";
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        const chunk = decoder.decode(value, { stream: true });
-        collected += chunk;
-        // Detect structured error token from the backend
-        if (collected.includes('__TRIAGE_ERROR__')) {
-          const errMsg = collected.split('__TRIAGE_ERROR__:')[1]?.trim() || 'Unknown error';
-          setTriageResultBody(`❌ **Triage Failed**\n\nThe AI encountered an error: _${errMsg}_\n\nPlease try again.`);
-          break;
-        }
-        setTriageResultBody(collected);
+      if (!res.ok) throw new Error(`Triage API error: ${res.status}`);
+      setTriageStep(3);
+      const data = await res.json();
+      if (data.error) {
+        setTriageResultBody("❌ " + data.error);
+      } else if (data.raw) {
+        setTriageResultBody(data.raw);
+      } else if (data.stats && data.items) {
+        setTriageResultBody(data);
+      } else {
+        setTriageResultBody("❌ Unexpected response from triage service.");
       }
     } catch (e) {
       console.error('[triage] Client error:', e);
-      setTriageResultBody("❌ **Action Failed**\n\nCould not connect to the triage service. Check your connection and try again.");
+      setTriageResultBody("❌ Could not connect to the triage service. Check your connection and try again.");
     }
     setTriageStep(0);
     setTriageLoading(false);
@@ -818,6 +845,7 @@ export default function Home() {
         }),
       });
       console.log("📥 Response status:", res.status);
+      if (!res.ok) throw new Error(`Reply API error: ${res.status}`);
       const data = await res.json();
       console.log("📦 Response data:", data);
       if (data.error) {
@@ -855,6 +883,7 @@ export default function Home() {
           date: mail.date,
         }),
       });
+      if (!res.ok) throw new Error(`Summary API error: ${res.status}`);
       const data = await res.json();
       if (data.error) {
         setAiSummary("❌ " + data.error);
@@ -879,6 +908,7 @@ export default function Home() {
           snippet: mail.snippet,
         }),
       });
+      if (!res.ok) throw new Error(`Priority API error: ${res.status}`);
       const data = await res.json();
       if (data.result?.priority) {
         setAiPriorityMap((prev) => ({
@@ -904,6 +934,7 @@ export default function Home() {
           date: mail.date,
         }),
       });
+      if (!res.ok) throw new Error(`Explain API error: ${res.status}`);
       const data = await res.json();
       if (data.error) {
         setAiReason("❌ " + data.error);
@@ -980,6 +1011,7 @@ export default function Home() {
     try {
       const url = token ? `/api/gmail?pageToken=${token}&folder=${folder}` : `/api/gmail?folder=${folder}`;
       const res = await fetch(url);
+      if (!res.ok) throw new Error(`Gmail API error: ${res.status}`);
       const data = await res.json();
       
       const newMails = data.emails || [];
@@ -1376,6 +1408,9 @@ export default function Home() {
 
   // ✅ FIX 3: Proper filtering with BOTH activeTab AND activeFolder
   const filteredEmails = emails.filter((mail) => {
+    // Hide reported phishing emails
+    if (reportedIds.includes(mail.id)) return false;
+
     // 1. Local-only folders (not stored as Gmail labels in this app)
     if (activeFolder === "starred") return starredIds.includes(mail.id);
     if (activeFolder === "snoozed") return snoozedIds.includes(mail.id);
@@ -1627,9 +1662,9 @@ export default function Home() {
                 <div style={{ padding: "9px 3px", color: "#A78BFA", fontSize: 11.5, textAlign: "center" }}>
                   All caught up ✨
                 </div>
-              ) : newMails.slice(0, 6).map((m, i) => (
+              ) : newMails.slice(0, 6).map((m) => (
                 <div
-                  key={i}
+                  key={m.id}
                   onClick={() => { openMailAndGenerateAI(m.id, m); setShowNotifications(false); setNewMailCount(0); setNewMails([]); }}
                   style={{ padding: "6px 7px", borderRadius: 6, cursor: "pointer", marginBottom: 2 }}
                   onMouseOver={e => (e.currentTarget.style.background = "#F5F3FF")}
@@ -1765,7 +1800,7 @@ export default function Home() {
             {/* ── ELITE TRIAGE BANNER ── */}
             {activeFolder === "inbox" && (
               <div style={{ 
-                position: "relative", padding: "26px 30px", flexShrink: 0, overflow: "hidden",
+                position: "relative", padding: "26px 30px", overflow: "hidden",
                 background: "linear-gradient(135deg, #0F172A 0%, #1E1B4B 100%)",
                 borderBottom: "1px solid #312E81",
               }}>
@@ -1784,7 +1819,7 @@ export default function Home() {
                    </div>
                    <button 
                      className="btn hover-glow" 
-                     onClick={runInboxTriage} 
+                     onClick={() => { setTriageCollapsed(false); runInboxTriage(); }} 
                      disabled={triageLoading} 
                      style={{ 
                        background: "linear-gradient(135deg, #6366F1, #8B5CF6)", 
@@ -1800,85 +1835,152 @@ export default function Home() {
                 </div>
 
                 {/* Triage Output / Loading State */}
-                {(triageLoading || triageResultBody) && (
+                {(triageLoading || triageResultBody) && (triageCollapsed && !triageLoading ? (
+                  <div onClick={() => setTriageCollapsed(false)} style={{ 
+                    position: "relative", zIndex: 1, marginTop: 14, cursor: "pointer",
+                    background: "rgba(15, 23, 42, 0.4)", borderRadius: 10, padding: "10px 16px", 
+                    border: "1px solid rgba(139, 92, 246, 0.15)", 
+                    display: "flex", alignItems: "center", justifyContent: "space-between",
+                    transition: "all 0.2s"
+                  }}>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: "#C4B5FD", letterSpacing: "0.02em" }}>📊 Triage results minimized</span>
+                    <span style={{ fontSize: 11, color: "#A78BFA", fontWeight: 600 }}>▼ Expand</span>
+                  </div>
+                ) : (
                   <div className="anim" style={{ 
                     position: "relative", zIndex: 1, marginTop: 22, 
                     background: "rgba(15, 23, 42, 0.6)", borderRadius: 16, padding: "20px 24px", 
                     border: "1px solid rgba(139, 92, 246, 0.2)", backdropFilter: "blur(12px)",
-                    boxShadow: "inset 0 1px 0 rgba(255,255,255,0.05), 0 10px 30px rgba(0,0,0,0.2)"
+                    boxShadow: "inset 0 1px 0 rgba(255,255,255,0.05), 0 10px 30px rgba(0,0,0,0.2)",
+                    maxHeight: "min(300px, 35vh)", overflowY: "auto"
                   }}>
+                     {/* Loading */}
                      {triageLoading && (
-                       <div style={{ display: "flex", gap: 14, marginBottom: triageResultBody ? 20 : 0, alignItems: "center" }}>
+                       <div style={{ display: "flex", gap: 14, alignItems: "center" }}>
                          <div style={{ position: "relative", width: 16, height: 16 }}>
-                           <div style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", borderRadius: "50%", background: "#8B5CF6", animation: "hfm-pulse 1s infinite" }} />
+                           <div style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", borderRadius: "50%", background: "#8B5CF6", animation: "hfm-spin 1s linear infinite" }} />
                            <div style={{ position: "absolute", top: 3, left: 3, width: 10, height: 10, borderRadius: "50%", background: "#C4B5FD" }} />
                          </div>
                          <span style={{ fontSize: 13, fontWeight: 700, color: "#C4B5FD", letterSpacing: "0.02em" }}>
-                           {triageStep === 1 ? "Scanning incoming emails and metadata..." 
-                           : triageStep === 2 ? "Mapping urgent priorities and extracting deadlines..." 
-                           : "Compiling Executive Morning Briefing..."}
+                           {triageStep === 1 ? "Scanning your inbox…" 
+                           : triageStep === 2 ? "Identifying priorities & deadlines…" 
+                           : "Generating your executive briefing…"}
                          </span>
                        </div>
                      )}
-                     
-                     {triageResultBody && (() => {
-                       const renderMarkdownLine = (line, i) => {
-                         // Render bold **text**
-                         const parseBold = (str) => {
-                           const parts = str.split(/\*\*(.+?)\*\*/g);
-                           return parts.map((p, j) => j % 2 === 1 ? <strong key={j} style={{ color: "#F8FAFC", fontWeight: 700 }}>{p}</strong> : p);
-                         };
-                         const parseItalic = (str) => {
-                           const parts = str.split(/\_(.+?)\_/g);
-                           return parts.map((p, j) => j % 2 === 1 ? <em key={j} style={{ color: "#94A3B8", fontWeight: 400 }}>{p}</em> : parseBold(p));
-                         };
-                         // Section headers (lines starting with emoji)
-                         if (/^[🎯⚠️📅💬]/.test(line)) {
-                           return <div key={i} style={{ fontWeight: 800, fontSize: 15, color: "#E2E8F0", marginTop: i === 0 ? 0 : 18, marginBottom: 6, fontFamily: "'Syne', sans-serif", letterSpacing: "-0.01em" }}>{parseItalic(line)}</div>;
-                         }
-                         // Arrow bullet points
-                         if (line.startsWith("→")) {
-                           return <div key={i} style={{ display: "flex", gap: 10, alignItems: "flex-start", marginBottom: 5 }}>
-                             <span style={{ color: "#A78BFA", fontWeight: 700, flexShrink: 0, marginTop: 1 }}>→</span>
-                             <span style={{ fontSize: 13, color: "#CBD5E1", lineHeight: 1.6 }}>{parseItalic(line.replace(/^→\s*/, ""))}</span>
-                           </div>;
-                         }
-                         // Dash bullets
-                         if (line.startsWith("- ")) {
-                           return <div key={i} style={{ display: "flex", gap: 8, alignItems: "flex-start", marginBottom: 4 }}>
-                             <span style={{ color: "#6366F1", flexShrink: 0 }}>•</span>
-                             <span style={{ fontSize: 13, color: "#CBD5E1", lineHeight: 1.6 }}>{parseItalic(line.replace(/^-\s*/, ""))}</span>
-                           </div>;
-                         }
-                         // Empty lines = spacer
-                         if (!line.trim()) return <div key={i} style={{ height: 4 }} />;
-                         // Default paragraph
-                         return <div key={i} style={{ fontSize: 13, color: "#94A3B8", lineHeight: 1.6, marginBottom: 3 }}>{parseItalic(line)}</div>;
+
+                     {/* Inbox Zero */}
+                     {triageResultBody === "inbox_zero" && (
+                       <div style={{ textAlign: "center", padding: "20px 0" }}>
+                         <div style={{ fontSize: 32, marginBottom: 8 }}>🎉</div>
+                         <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 18, color: "#E2E8F0", marginBottom: 6 }}>Inbox Zero!</div>
+                         <div style={{ fontSize: 13, color: "#94A3B8" }}>You're all caught up. No urgent tasks or replies needed.</div>
+                       </div>
+                     )}
+
+                     {/* Structured JSON result */}
+                     {triageResultBody && typeof triageResultBody === "object" && triageResultBody.stats && (() => {
+                       const { stats, items = [] } = triageResultBody;
+                       const urgCfg = {
+                         urgent:       { color: "#EF4444", bg: "rgba(239,68,68,0.12)", border: "rgba(239,68,68,0.25)", label: "ACT NOW", icon: "🔴" },
+                         reply_needed: { color: "#F59E0B", bg: "rgba(245,158,11,0.12)", border: "rgba(245,158,11,0.25)", label: "REPLY NEEDED", icon: "🟡" },
+                         fyi:          { color: "#22C55E", bg: "rgba(34,197,94,0.10)",  border: "rgba(34,197,94,0.20)",  label: "FYI", icon: "🟢" },
                        };
+                       const findTriageEmail = (item) => filteredEmails.find(m => {
+                         const f = (m.from || "").toLowerCase();
+                         const s = (m.subject || "").toLowerCase();
+                         const iSender = (item.sender || "").toLowerCase();
+                         const iSubject = (item.subject || "").toLowerCase();
+                         return (iSender && f.includes(iSender)) || (iSubject && s.includes(iSubject));
+                       });
+                       const groups = ["urgent", "reply_needed", "fyi"];
                        return (
-                         <div style={{ fontFamily: "'Inter', sans-serif" }}>
-                           {triageResultBody.split("\n").map((line, i) => renderMarkdownLine(line, i))}
+                         <div>
+                           {/* Stats Bar */}
+                           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 20 }}>
+                             {[
+                               { label: `${stats.total} analyzed`, color: "#A78BFA", bg: "rgba(167,139,250,0.12)" },
+                               { label: `${stats.urgent} urgent`, color: "#EF4444", bg: "rgba(239,68,68,0.12)" },
+                               { label: `${stats.needsReply} need reply`, color: "#F59E0B", bg: "rgba(245,158,11,0.12)" },
+                               { label: `${stats.fyi} FYI`, color: "#22C55E", bg: "rgba(34,197,94,0.10)" },
+                             ].map((s) => (
+                               <span key={s.label} style={{
+                                 fontSize: 11.5, fontWeight: 700, color: s.color, background: s.bg,
+                                 padding: "5px 12px", borderRadius: 99, border: `1px solid ${s.color}30`,
+                                 letterSpacing: "0.02em"
+                               }}>{s.label}</span>
+                             ))}
+                           </div>
+
+                           {/* Urgency Groups */}
+                           {groups.map(urgency => {
+                             const groupItems = items.filter(it => it.urgency === urgency);
+                             if (groupItems.length === 0) return null;
+                             const cfg = urgCfg[urgency] || urgCfg.fyi;
+                             return (
+                               <div key={urgency} style={{ marginBottom: 16 }}>
+                                 <div style={{ fontSize: 10, fontWeight: 800, color: cfg.color, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}>
+                                   {cfg.icon} {cfg.label}
+                                 </div>
+                                 {groupItems.map((item, i) => {
+                                   const matchedMail = findTriageEmail(item);
+                                   return (
+                                     <div key={`${item.subject || ""}-${item.from || ""}-${i}`} style={{
+                                       display: "flex", alignItems: "center", gap: 14,
+                                       padding: "10px 14px", borderRadius: 10, marginBottom: 6,
+                                       background: cfg.bg, border: `1px solid ${cfg.border}`,
+                                       transition: "all 0.15s", cursor: matchedMail ? "pointer" : "default",
+                                     }}
+                                       onClick={() => { if (matchedMail) { openMailAndGenerateAI(matchedMail.id, matchedMail); setTriageResultBody(null); } }}
+                                       onMouseOver={e => { if (matchedMail) e.currentTarget.style.background = `${cfg.color}20`; }}
+                                       onMouseOut={e => { e.currentTarget.style.background = cfg.bg; }}
+                                     >
+                                       <div style={{ flex: 1, minWidth: 0 }}>
+                                         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 3 }}>
+                                           <span style={{ fontSize: 12.5, fontWeight: 700, color: "#F1F5F9" }}>{item.sender}</span>
+                                           <span style={{ fontSize: 11, color: "#64748B", fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.subject}</span>
+                                         </div>
+                                         <div style={{ fontSize: 13, color: "#E2E8F0", fontWeight: 600, lineHeight: 1.5 }}>
+                                           {item.action}
+                                         </div>
+                                         {item.reason && (
+                                           <div style={{ fontSize: 11, color: "#94A3B8", marginTop: 3, fontStyle: "italic" }}>{item.reason}</div>
+                                         )}
+                                       </div>
+                                       {matchedMail && (
+                                         <div style={{ flexShrink: 0, fontSize: 11, color: cfg.color, fontWeight: 700, opacity: 0.7 }}>Open →</div>
+                                       )}
+                                     </div>
+                                   );
+                                 })}
+                               </div>
+                             );
+                           })}
                          </div>
                        );
                      })()}
-                     
+
+                     {/* Fallback: raw text */}
+                     {triageResultBody && typeof triageResultBody === "string" && triageResultBody !== "inbox_zero" && (
+                       <div style={{ fontSize: 13, color: "#CBD5E1", lineHeight: 1.7, whiteSpace: "pre-wrap" }}>{triageResultBody}</div>
+                     )}
+
+                     {/* Dismiss / Re-run */}
                      {!triageLoading && triageResultBody && (
-                        <div style={{ marginTop: 16, display: "flex", justifyContent: "flex-end", borderTop: "1px solid rgba(255,255,255,0.05)", paddingTop: 16 }}>
-                           <button 
-                             className="btn" 
-                             onClick={() => setTriageResultBody(null)} 
-                             style={{ 
-                               background: "rgba(255,255,255,0.05)", color: "#94A3B8", 
-                               border: "1px solid rgba(255,255,255,0.1)", fontSize: 12,
-                               padding: "6px 14px", borderRadius: 8
-                             }}
-                            >
-                             Dismiss Briefing
+                        <div style={{ marginTop: 16, display: "flex", justifyContent: "flex-end", gap: 8, borderTop: "1px solid rgba(255,255,255,0.05)", paddingTop: 16 }}>
+                           <button className="btn" onClick={runInboxTriage} style={{ background: "rgba(139,92,246,0.15)", color: "#A78BFA", border: "1px solid rgba(139,92,246,0.25)", fontSize: 12, padding: "6px 14px", borderRadius: 8 }}>
+                             ↻ Re-run
+                           </button>
+                           <button className="btn" onClick={() => setTriageCollapsed(true)} style={{ background: "rgba(255,255,255,0.05)", color: "#94A3B8", border: "1px solid rgba(255,255,255,0.1)", fontSize: 12, padding: "6px 14px", borderRadius: 8 }}>
+                             ▲ Collapse
+                           </button>
+                           <button className="btn" onClick={() => { setTriageResultBody(null); setTriageCollapsed(false); }} style={{ background: "rgba(255,255,255,0.05)", color: "#94A3B8", border: "1px solid rgba(255,255,255,0.1)", fontSize: 12, padding: "6px 14px", borderRadius: 8 }}>
+                             Dismiss
                            </button>
                         </div>
                      )}
                   </div>
-                )}
+                ))}
               </div>
             )}
 
@@ -1966,7 +2068,7 @@ export default function Home() {
 
                     {/* badges */}
                     <div style={{ width: 230, flexShrink: 0, display: "flex", alignItems: "center", gap: 6 }}>
-                        {phishing.isPhishing ? (
+                        {phishing.isPhishing && !safeIds.includes(mail.id) ? (
                           <span className="pill threat-badge" style={{
                             background: "linear-gradient(90deg, #7F1D1D, #DC2626, #7F1D1D)",
                             backgroundSize: "200% auto",
@@ -1974,7 +2076,7 @@ export default function Home() {
                             color: "#FEF2F2", fontWeight: 800, border: "1px solid #EF444460",
                             whiteSpace: "nowrap", padding: "4px 10px", fontSize: 10,
                             letterSpacing: "0.04em", textTransform: "uppercase"
-                          }}>🚨 Phishing Risk</span>
+                          }}>🚨 Phishing Risk · {phishing.score}</span>
                         ) : isSpam ? (
                           <span className="pill" style={{ background: "#FEF2F2", color: "#B91C1C", fontWeight: 700, border: "1px solid #B91C1C30", whiteSpace: "nowrap", padding: "4px 10px" }}>✕ Spam</span>
                         ) : (
@@ -2047,7 +2149,7 @@ export default function Home() {
                 {/* ── ELITE PHISHING ALERT BANNER ── */}
                 {(() => {
                   const ph = getPhishingInfo(selectedMail);
-                  if (!ph.isPhishing) return null;
+                  if (!ph.isPhishing || safeIds.includes(selectedMail.id)) return null;
                   const isHigh = ph.level === "high";
                   // SVG circular gauge
                   const radius = 28, circumference = 2 * Math.PI * radius;
@@ -2110,8 +2212,8 @@ export default function Home() {
                       {/* Reason Chips */}
                       {ph.reasons.length > 0 && (
                         <div style={{ marginTop: 16, display: "flex", flexWrap: "wrap", gap: 7 }}>
-                          {ph.reasons.map((r, i) => (
-                            <span key={i} style={{
+                          {ph.reasons.map((r) => (
+                            <span key={r} style={{
                               fontSize: 11, fontWeight: 700,
                               background: "rgba(0,0,0,0.3)",
                               backdropFilter: "blur(8px)",
@@ -2126,23 +2228,35 @@ export default function Home() {
                         </div>
                       )}
 
+
+                      {/* Safety Tips */}
+                      <div style={{ marginTop: 16, padding: '12px 14px', borderRadius: 10, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                        <div style={{ fontSize: 10, fontWeight: 800, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>How to Stay Safe</div>
+                        {['Never click links from unknown senders', 'Check sender email address carefully for typos', 'Legitimate companies never ask for passwords via email', 'When in doubt, contact the company directly'].map((tip) => (
+                          <div key={tip} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 5 }}>
+                            <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.3)' }}>{'●'}</span>
+                            <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)', lineHeight: 1.4 }}>{tip}</span>
+                          </div>
+                        ))}
+                      </div>
+
                       {/* CTA row */}
                       <div style={{ marginTop: 16, paddingTop: 14, borderTop: "1px solid rgba(255,255,255,0.07)", display: "flex", gap: 8, justifyContent: "flex-end" }}>
-                        <button onClick={() => alert("Email flagged as safe for this session.")} style={{
+                        <button onClick={() => { setSafeIds(prev => [...prev, selectedMail.id]); }} style={{
                           background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.12)",
                           color: "rgba(255,255,255,0.65)", fontSize: 11.5, fontWeight: 700,
                           padding: "7px 14px", borderRadius: 8, cursor: "pointer", letterSpacing: "0.02em"
                         }}>
                           ✓ Mark as Safe
                         </button>
-                        <button onClick={() => alert("Reported as phishing. Thank you for keeping the community safe.")} style={{
+                        <button onClick={() => { setReportedIds(prev => [...prev, selectedMail.id]); setSelectedMail(null); }} style={{
                           background: isHigh ? "#DC2626" : "#D97706",
                           border: "none", color: "#fff",
                           fontSize: 11.5, fontWeight: 800,
                           padding: "7px 16px", borderRadius: 8, cursor: "pointer",
                           boxShadow: `0 2px 10px ${isHigh ? "rgba(220,38,38,0.4)" : "rgba(217,119,6,0.4)"}`
                         }}>
-                          🚩 Report Phishing
+                          🚩 Report & Remove
                         </button>
                       </div>
                     </div>
@@ -2242,93 +2356,116 @@ export default function Home() {
                 {/* ── HANDLE FOR ME RESULT ── */}
                 {(handleForMeResult || loadingHandleForMe) && (
                   <div className="anim" style={{ 
-                    background: "#FFF", borderRadius: 12, padding: "20px", marginBottom: 24, 
+                    background: "#FFF", borderRadius: 14, padding: "22px", marginBottom: 24, 
                     border: "1px solid #E2E8F0", boxShadow: "0 4px 6px -1px rgba(0,0,0,0.05)"
                   }}>
                     <div style={{ fontSize: 13, fontWeight: 800, color: "#0F172A", marginBottom: 16, display: "flex", alignItems: "center", gap: 6, letterSpacing: "0.02em" }}>
-                      <Ico.Zap /> AUTO-HANDLE WORKFLOW
+                      <Ico.Zap /> AUTO-HANDLE RESULT
                     </div>
 
-                    {/* Step progress — shown while loading */}
+                    {/* Loading state — honest, no fake steps */}
                     {loadingHandleForMe && (
                       <div style={{
-                        background: "#F8FAFC", borderRadius: 10, padding: "16px",
-                        border: "1px solid #E2E8F0", marginBottom: 8,
+                        background: "linear-gradient(135deg, #F8FAFC, #EFF6FF)", borderRadius: 10, padding: "20px",
+                        border: "1px solid #DBEAFE", display: "flex", alignItems: "center", gap: 14,
                       }}>
-                        <div style={{ fontSize: 12, fontWeight: 700, color: "#3B82F6", marginBottom: 12, letterSpacing: "0.04em" }}>
-                          ⚡ Processing your email context...
+                        <div style={{ position: "relative", width: 20, height: 20, flexShrink: 0 }}>
+                          <div style={{ position: "absolute", inset: 0, borderRadius: "50%", border: "2.5px solid #DBEAFE", borderTopColor: "#3B82F6", animation: "hfm-spin 0.8s linear infinite" }} />
                         </div>
-                        {[
-                          { label: "Classify Sentiment", icon: "🏷️" },
-                          { label: "Generate Summary", icon: "📝" },
-                          { label: "Extract Action Items", icon: "✅" },
-                          { label: "Draft Deep Reply", icon: "✍️" },
-                        ].map((step, i) => {
-                          const progress = handleForMeResult.length;
-                          const thresholds = [0, 80, 200, 400];
-                          const isDone = progress > (thresholds[i + 1] ?? Infinity);
-                          const isActive = progress >= thresholds[i] && !isDone;
-                          return (
-                            <div key={step.label} style={{
-                              display: "flex", alignItems: "center", gap: 12,
-                              padding: "10px 14px", borderRadius: 8, marginBottom: 8,
-                              background: isDone ? "#F0FDF4" : isActive ? "#EFF6FF" : "#FFF",
-                              border: `1px solid ${isDone ? "#BBF7D0" : isActive ? "#BFDBFE" : "#E2E8F0"}`,
-                              transition: "all 0.3s ease",
-                            }}>
-                              <div style={{
-                                width: 24, height: 24, borderRadius: "50%", flexShrink: 0,
-                                display: "flex", alignItems: "center", justifyContent: "center",
-                                background: isDone ? "#16A34A" : isActive ? "#3B82F6" : "#F1F5F9",
-                              }}>
-                                {isDone
-                                  ? <span style={{ color: "#fff", fontWeight: 900, fontSize: 12 }}>✓</span>
-                                  : isActive
-                                    ? <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#fff", display: "block", animation: "hfm-pulse 1.2s ease-in-out infinite" }} />
-                                    : <span style={{ fontSize: 10, color: "#94A3B8", fontWeight: 700 }}>{i + 1}</span>
-                                }
-                              </div>
-                              <span style={{ fontSize: 13, fontWeight: 600, color: isDone ? "#15803D" : isActive ? "#1D4ED8" : "#64748B" }}>
-                                {step.icon} {step.label}
-                              </span>
-                              {isActive && <span style={{ marginLeft: "auto", fontSize: 11, color: "#60A5FA", fontStyle: "italic" }}>Running...</span>}
-                              {isDone && <span style={{ marginLeft: "auto", fontSize: 11, color: "#4ADE80" }}>Done</span>}
-                            </div>
-                          );
-                        })}
-                        {handleForMeResult && (
-                          <div style={{
-                            marginTop: 12, padding: "10px 12px", borderRadius: 8,
-                            background: "rgba(255,255,255,0.8)", border: "1px solid #CBD5E1",
-                            fontSize: 12, color: "#475569", lineHeight: 1.6,
-                            maxHeight: 60, overflow: "hidden",
-                            maskImage: "linear-gradient(to bottom, black 40%, transparent 100%)",
-                            WebkitMaskImage: "linear-gradient(to bottom, black 40%, transparent 100%)",
-                          }}>
-                            {handleForMeResult.slice(0, 200)}
+                        <div>
+                          <div style={{ fontSize: 13, fontWeight: 700, color: "#1D4ED8" }}>
+                            Analyzing email & drafting response…
                           </div>
-                        )}
+                          <div style={{ fontSize: 11, color: "#64748B", marginTop: 3 }}>
+                            Classifying, summarizing, extracting tasks, and composing a reply
+                          </div>
+                        </div>
                       </div>
                     )}
 
-                    {/* Editable reply — shown after loading completes */}
-                    {handleForMeResult && !loadingHandleForMe && (
+                    {/* Structured result card — shown when hfmData is available */}
+                    {!loadingHandleForMe && hfmData && (hfmData.category || hfmData.summary || hfmData.tasks?.length > 0) && (
                       <>
-                        <div style={{ fontSize: 12, fontWeight: 700, color: "#475569", marginBottom: 8, display: "flex", alignItems: "center", gap: 5 }}>
-                          ✍️ Fully Drafted Reply <span style={{ fontWeight: 400, color: "#94A3B8", fontSize: 11 }}>(editable)</span>
+                        {/* Row 1: Category badge + Priority bar */}
+                        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14, flexWrap: "wrap" }}>
+                          {hfmData.category && (
+                            <span style={{
+                              fontSize: 10.5, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.06em",
+                              padding: "4px 10px", borderRadius: 6,
+                              background: hfmData.category === "action_required" ? "rgba(239,68,68,0.1)" : hfmData.category === "follow_up" ? "rgba(245,158,11,0.1)" : "rgba(99,102,241,0.1)",
+                              color: hfmData.category === "action_required" ? "#DC2626" : hfmData.category === "follow_up" ? "#D97706" : "#6366F1",
+                              border: `1px solid ${hfmData.category === "action_required" ? "#DC262630" : hfmData.category === "follow_up" ? "#D9770630" : "#6366F130"}`,
+                            }}>
+                              {hfmData.category.replace(/_/g, " ")}
+                            </span>
+                          )}
+                          {hfmData.priority != null && (
+                            <div style={{ display: "flex", alignItems: "center", gap: 8, flex: 1 }}>
+                              <div style={{ flex: 1, height: 5, borderRadius: 99, background: "#F1F5F9", overflow: "hidden", maxWidth: 120 }}>
+                                <div style={{
+                                  height: "100%", borderRadius: 99, transition: "width 0.6s ease",
+                                  width: `${hfmData.priority}%`,
+                                  background: hfmData.priority >= 70 ? "linear-gradient(90deg, #EF4444, #DC2626)" : hfmData.priority >= 40 ? "linear-gradient(90deg, #F59E0B, #D97706)" : "linear-gradient(90deg, #22C55E, #16A34A)",
+                                }} />
+                              </div>
+                              <span style={{ fontSize: 11, fontWeight: 700, color: "#64748B" }}>{hfmData.priority}/100</span>
+                            </div>
+                          )}
+                          {hfmData.deadline && (
+                            <span style={{ fontSize: 10.5, fontWeight: 600, color: "#92400E", background: "#FFFBEB", padding: "3px 8px", borderRadius: 5, border: "1px solid #FDE68A" }}>
+                              ⏰ {hfmData.deadline}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Summary */}
+                        {hfmData.summary && (
+                          <div style={{ fontSize: 13.5, color: "#1E293B", lineHeight: 1.65, marginBottom: 14, fontWeight: 500 }}>
+                            {hfmData.summary}
+                          </div>
+                        )}
+
+                        {/* Tasks */}
+                        {hfmData.tasks?.length > 0 && (
+                          <div style={{ marginBottom: 14 }}>
+                            <div style={{ fontSize: 10, fontWeight: 800, color: "#64748B", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8 }}>
+                              Action Items
+                            </div>
+                            {hfmData.tasks.map((task, i) => (
+                              <label key={`task-${i}-${task.slice(0,20)}`} style={{ display: "flex", alignItems: "flex-start", gap: 8, marginBottom: 6, cursor: "pointer", fontSize: 13, color: "#334155", lineHeight: 1.5 }}>
+                                <input type="checkbox" style={{ marginTop: 3, accentColor: "#7C3AED" }} />
+                                {task}
+                              </label>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* Follow-up indicator */}
+                        {hfmData.followUp && (
+                          <div style={{ fontSize: 11, color: "#7C3AED", background: "#F5F3FF", padding: "6px 10px", borderRadius: 6, marginBottom: 14, border: "1px solid #EDE9FE", fontWeight: 600 }}>
+                            🔔 Follow-up tracked — "{hfmData.followUp}"
+                          </div>
+                        )}
+
+                        {/* Divider */}
+                        <div style={{ height: 1, background: "#E2E8F0", margin: "4px 0 14px" }} />
+
+                        {/* Draft reply */}
+                        <div style={{ fontSize: 10, fontWeight: 800, color: "#64748B", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8, display: "flex", alignItems: "center", gap: 5 }}>
+                          ✍️ Draft Reply <span style={{ fontWeight: 400, fontSize: 10, textTransform: "none", letterSpacing: 0 }}>(editable)</span>
                         </div>
                         <textarea
                           value={handleForMeResult}
                           onChange={(e) => setHandleForMeResult(e.target.value)}
-                          rows={8}
+                          rows={6}
                           style={{
                             width: "100%", boxSizing: "border-box",
-                            background: "#F8FAFC", borderRadius: 8, padding: "14px",
+                            background: "#F8FAFC", borderRadius: 8, padding: "12px 14px",
                             fontSize: 13, color: "#1E293B", lineHeight: 1.7,
                             border: "1px solid #CBD5E1", resize: "vertical",
                             fontFamily: "inherit", outline: "none", marginBottom: 12
                           }}
-                          onFocus={e => e.target.style.borderColor = "#94A3B8"}
+                          onFocus={e => e.target.style.borderColor = "#7C3AED"}
                           onBlur={e => e.target.style.borderColor = "#CBD5E1"}
                         />
                         <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", alignItems: "center" }}>
@@ -2347,12 +2484,12 @@ export default function Home() {
                                 opacity: sendingReply ? 0.7 : 1, padding: "10px 16px" 
                               }}
                             >
-                              <Ico.Send /> {sendingReply ? "Sending..." : "Send AI Response"}
+                              <Ico.Send /> {sendingReply ? "Sending..." : "Send Reply"}
                             </button>
                           )}
                           <button
                             className="btn"
-                            onClick={() => { setHandleForMeResult(""); setReplySent(false); }}
+                            onClick={() => { setHandleForMeResult(""); setHfmData(null); setReplySent(false); }}
                             style={{ background: "#F1F5F9", color: "#475569", border: "none" }}
                           >
                             Dismiss
@@ -2360,9 +2497,48 @@ export default function Home() {
                         </div>
                       </>
                     )}
+
+                    {/* Fallback: raw text when structured parsing didn't produce hfmData */}
+                    {!loadingHandleForMe && handleForMeResult && (!hfmData || (!hfmData.category && !hfmData.summary && (!hfmData.tasks || hfmData.tasks.length === 0))) && (
+                      <>
+                        <div style={{ fontSize: 10, fontWeight: 800, color: "#64748B", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8 }}>
+                          ✍️ AI Response <span style={{ fontWeight: 400, fontSize: 10, textTransform: "none", letterSpacing: 0 }}>(editable)</span>
+                        </div>
+                        <textarea
+                          value={handleForMeResult}
+                          onChange={(e) => setHandleForMeResult(e.target.value)}
+                          rows={8}
+                          style={{
+                            width: "100%", boxSizing: "border-box",
+                            background: "#F8FAFC", borderRadius: 8, padding: "14px",
+                            fontSize: 13, color: "#1E293B", lineHeight: 1.7,
+                            border: "1px solid #CBD5E1", resize: "vertical",
+                            fontFamily: "inherit", outline: "none", marginBottom: 12
+                          }}
+                          onFocus={e => e.target.style.borderColor = "#7C3AED"}
+                          onBlur={e => e.target.style.borderColor = "#CBD5E1"}
+                        />
+                        <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", alignItems: "center" }}>
+                          {replySent ? (
+                            <span style={{ fontSize: 13, color: "#16A34A", fontWeight: 700, padding: "5px 0" }}>
+                              ✅ Reply sent successfully
+                            </span>
+                          ) : (
+                            <button className="btn" onClick={sendDraftReply} disabled={sendingReply}
+                              style={{ background: "linear-gradient(135deg, #10B981, #059669)", color: "#fff", border: "none", fontWeight: 700, opacity: sendingReply ? 0.7 : 1, padding: "10px 16px" }}>
+                              <Ico.Send /> {sendingReply ? "Sending..." : "Send Reply"}
+                            </button>
+                          )}
+                          <button className="btn" onClick={() => { setHandleForMeResult(""); setHfmData(null); setReplySent(false); }}
+                            style={{ background: "#F1F5F9", color: "#475569", border: "none" }}>
+                            Dismiss
+                          </button>
+                        </div>
+                      </>
+                    )}
                   </div>
                 )}
-                <style>{`@keyframes hfm-pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.4;transform:scale(0.85)} }`}</style>
+                <style>{`@keyframes hfm-spin { to { transform: rotate(360deg); } }`}</style>
 
                 {/* ── PREMIUM INSIGHTS RENDER AREA ── */}
                 {(aiSummary || loadingAI || aiReason || aiReply || extractTasks(selectedMail?.snippet || selectedMail?.body || "").length > 0) && (
@@ -2394,7 +2570,7 @@ export default function Home() {
                            <div style={{ background: "#FDF4FF", border: "1px solid #F5D0FE", borderRadius: 12, padding: "16px 20px" }}>
                              <div style={{ fontSize: 11, fontWeight: 800, color: "#C026D3", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 10 }}><Ico.Check /> Extracted Tasks</div>
                              {extractTasks(selectedMail?.snippet || selectedMail?.body || "").map((task, i) => (
-                               <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 8, marginBottom: 8, fontSize: 13, color: "#701A75", lineHeight: 1.5 }}>
+                               <div key={`extracted-${i}-${task.slice(0,20)}`} style={{ display: "flex", alignItems: "flex-start", gap: 8, marginBottom: 8, fontSize: 13, color: "#701A75", lineHeight: 1.5 }}>
                                  <div style={{ marginTop: 2, flexShrink: 0, width: 14, height: 14, borderRadius: 4, border: "1.5px solid #D946EF", background: "#FDF4FF" }} />
                                  {task}
                                </div>
@@ -2439,6 +2615,7 @@ export default function Home() {
                                   headers: { "Content-Type": "application/json" },
                                   body: JSON.stringify({ to: recipient, subject: selectedMail.subject, body: editableReply, threadId: selectedMail.threadId, originalMessageId: selectedMail.messageId }),
                                 });
+                                if (!res.ok) { alert(`❌ Reply failed: ${res.status}`); return; }
                                 const data = await res.json();
                                 alert(data.success ? "✅ Reply Sent Successfully!" : "❌ Error: " + data.error);
                               }}

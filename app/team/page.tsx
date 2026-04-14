@@ -32,22 +32,25 @@ export default function TeamPage() {
     setLoading(false);
   };
 
-  const handleAssignEmail = async (
-    emailId: string,
-    memberId: string,
-    deadline?: string,
-    notes?: string
-  ) => {
+  const handleAssignEmail = async (assignment: {
+    emailId: string;
+    assignedTo: string;
+    assignedBy: string;
+    deadline?: string;
+    status: "assigned" | "in-progress" | "waiting-on-client" | "completed";
+    notes: { text: string; author: string; timestamp: number }[];
+    priority: number;
+  }) => {
     try {
       const res = await fetch("/api/team/assignments", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          emailId,
-          assignedTo: memberId,
-          deadline,
-          notes,
-          priority: 50,
+          emailId: assignment.emailId,
+          assignedTo: assignment.assignedTo,
+          deadline: assignment.deadline,
+          notes: assignment.notes,
+          priority: assignment.priority,
         }),
       });
       const data = await res.json();
@@ -91,13 +94,13 @@ export default function TeamPage() {
     }
   };
 
-  const handleInviteMember = async (email: string, name: string) => {
+  const handleInviteMember = async (email: string) => {
     try {
       // Send real email via Gmail API
       const inviteRes = await fetch("/api/team/invite", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, name }),
+        body: JSON.stringify({ email }),
       });
       const inviteData = await inviteRes.json();
       
@@ -110,7 +113,7 @@ export default function TeamPage() {
       const res = await fetch("/api/team/assignments", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, name }),
+        body: JSON.stringify({ email }),
       });
       const data = await res.json();
       

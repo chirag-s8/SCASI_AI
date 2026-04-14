@@ -2,27 +2,45 @@
 
 import { useState, useEffect } from "react";
 
+type PanelMember = { id: string; name: string; status?: string };
+type PanelNote = { text: string; author: string; timestamp: number };
+type PanelTask = {
+  emailId: string;
+  assignedTo: string;
+  assignedBy: string;
+  deadline: string | null;
+  status: string;
+  notes: PanelNote[];
+  priority: number;
+};
+
 export default function EmailTeamPanel({ emailId, onAssigned }: { emailId: string, onAssigned?: () => void }) {
-  const [members, setMembers] = useState<any[]>([]);
-  const [tasks, setTasks] = useState<any[]>([]);
-  const [activeTask, setActiveTask] = useState<any>(null);
+  const [members, setMembers] = useState<PanelMember[]>([]);
+  const [tasks, setTasks] = useState<PanelTask[]>([]);
+  const [activeTask, setActiveTask] = useState<PanelTask | null>(null);
   
   const [assignTo, setAssignTo] = useState("");
   const [deadline, setDeadline] = useState("");
   const [newNote, setNewNote] = useState("");
 
   const loadData = () => {
-    const tm = localStorage.getItem("scasi_team_members");
-    const te = localStorage.getItem("scasi_team_tasks");
-    const parsedMembers = tm ? JSON.parse(tm) : [{ id: "me", name: "You" }];
-    const parsedTasks = te ? JSON.parse(te) : [];
-    
-    setMembers(parsedMembers);
-    setTasks(parsedTasks);
-    
-    const task = parsedTasks.find((t: any) => t.emailId === emailId);
-    setActiveTask(task);
-    if (!task) setAssignTo(parsedMembers[0].id);
+    try {
+      const tm = localStorage.getItem("scasi_team_members");
+      const te = localStorage.getItem("scasi_team_tasks");
+      const parsedMembers = tm ? JSON.parse(tm) : [{ id: "me", name: "You" }];
+      const parsedTasks = te ? JSON.parse(te) : [];
+
+      setMembers(parsedMembers);
+      setTasks(parsedTasks);
+
+      const task = parsedTasks.find((t: PanelTask) => t.emailId === emailId);
+      setActiveTask(task);
+      if (!task) setAssignTo(parsedMembers[0]?.id ?? "");
+    } catch (e) {
+      console.error("Failed to load team panel data:", e);
+      setMembers([{ id: "me", name: "You" }]);
+      setTasks([]);
+    }
   };
 
   useEffect(() => {
@@ -55,7 +73,9 @@ export default function EmailTeamPanel({ emailId, onAssigned }: { emailId: strin
     if (!newNote.trim() || !activeTask) return;
     const noteObj = { text: newNote, author: "You", timestamp: Date.now() };
     const updatedTask = { ...activeTask, notes: [...(activeTask.notes || []), noteObj] };
-    const newTasks = tasks.map(t => t.emailId === emailId ? updatedTask : t);
+    const newTasks = tasks.map((t: PanelTask) => t.emailId === emailId ? updatedTask : t);
+    setActiveTask(updatedTask);
+    setTasks(newTasks);
     saveTasks(newTasks);
     setNewNote("");
   };
@@ -97,12 +117,12 @@ export default function EmailTeamPanel({ emailId, onAssigned }: { emailId: strin
             {activeTask.notes && activeTask.notes.length > 0 && (
               <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 20 }}>
                 {activeTask.notes.map((n: any, i: number) => (
-                  <div key={i} style={{ display: "flex", gap: 12 }}>
+                  <div key={`${n.timestamp}-${i}`} style={{ display: "flex", gap: 12 }}>
                     <div style={{ width: 32, height: 32, borderRadius: "50%", background: "#E2D9F3", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 800, color: "#7C3AED", flexShrink: 0 }}>
                       {n.author.charAt(0)}
                     </div>
                     <div>
-                      <div style={{ fontSize: 11, fontWeight: 800, color: "#7a72a8", marginBottom: 2 }}>{n.author} • Just now</div>
+                      <div style={{ fontSize: 11, fontWeight: 800, color: "#7a72a8", marginBottom: 2 }}>{n.author} • {new Date(n.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
                       <div style={{ fontSize: 13, color: "#18103A", background: "white", padding: "10px 14px", borderRadius: "0 14px 14px 14px", border: "1px solid #E2D9F3", display: "inline-block" }}>
                          {n.text}
                       </div>

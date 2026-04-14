@@ -1,0 +1,16 @@
+{
+  "enabled": true,
+  "name": "Code Review After Write",
+  "description": "After any file write operation, runs an automated code review and reports critical, high, and low severity bugs, errors, and potential failures in the modified code.",
+  "version": "1",
+  "when": {
+    "type": "postToolUse",
+    "toolTypes": [
+      "write"
+    ]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "A file was just written. Review the code that was written and report any issues found, grouped by severity:\n\n**CRITICAL** — bugs that will cause crashes, data loss, security vulnerabilities, or broken functionality\n**HIGH** — logic errors, missing error handling, race conditions, incorrect types, or likely runtime failures\n**LOW** — code smells, minor inefficiencies, missing edge case handling, or style issues that could cause subtle bugs\n\nFor each issue include:\n- Severity level\n- File and approximate location\n- Clear description of the problem\n- A brief suggestion for how to fix it\n\nIf no issues are found, say \"No issues found.\" and stop. Do not suggest stylistic improvements unrelated to correctness or reliability."
+  }
+}

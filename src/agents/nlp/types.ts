@@ -69,6 +69,9 @@ export const SummarizeOutputSchema = z.object({
     receivedDate: z.string().catch(''),
     deadline: z.string().nullable().catch(null),
     summary: z.string().catch(''),
+    keyAsk: z.string().catch('No action needed'),
+    tone: z.string().catch('neutral'),
+    nextStep: z.string().catch(''),
 });
 export type SummarizeOutput = z.infer<typeof SummarizeOutputSchema>;
 
@@ -79,7 +82,7 @@ export type SummarizeOutput = z.infer<typeof SummarizeOutputSchema>;
 export const DraftReplyInputSchema = z.object({
     subject: z.string().max(1000),
     snippet: z.string().max(10_000),
-    tone: z.enum(['professional', 'casual', 'formal']).default('professional'),
+    tone: z.enum(['professional', 'casual', 'formal', 'friendly', 'firm', 'grateful']).default('professional'),
     from: z.string().max(500).optional(),
 });
 export type DraftReplyInput = z.infer<typeof DraftReplyInputSchema>;

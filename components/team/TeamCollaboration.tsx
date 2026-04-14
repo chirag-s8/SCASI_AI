@@ -30,6 +30,12 @@ type TeamProject = {
 };
 
 type Props = {
+  teamMembers?: TeamMember[];
+  assignedEmails?: AssignedEmail[];
+  onAssignEmail?: (assignment: AssignedEmail) => void;
+  onUpdateStatus?: (emailId: string, status: string) => void;
+  onAddNote?: (emailId: string, note: string) => void;
+  onInviteMember?: (email: string) => void;
   onEmailClick?: (id: string) => void;
 };
 
@@ -37,10 +43,14 @@ const DEFAULT_TEAM: TeamMember[] = [
   { id: "me", name: "You (Admin)", email: "admin@scasi.ai", role: "Admin", status: "active", activeTasksCount: 0, responseRate: 100 },
 ];
 
-export default function TeamCollaboration({ onEmailClick }: Props) {
+export default function TeamCollaboration({ teamMembers: externalTeamMembers, assignedEmails: externalAssignedEmails, onAssignEmail, onUpdateStatus, onAddNote, onInviteMember, onEmailClick }: Props) {
   const [activeTab, setActiveTab] = useState<"overview" | "projects" | "assignments">("overview");
-  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
-  const [assignedEmails, setAssignedEmails] = useState<AssignedEmail[]>([]);
+  const [internalTeamMembers, setInternalTeamMembers] = useState<TeamMember[]>([]);
+  const [internalAssignedEmails, setInternalAssignedEmails] = useState<AssignedEmail[]>([]);
+
+  // Use external data when provided, otherwise fall back to internal localStorage data
+  const teamMembers = externalTeamMembers ?? internalTeamMembers;
+  const assignedEmails = externalAssignedEmails ?? internalAssignedEmails;
   const [teamProjects, setTeamProjects] = useState<TeamProject[]>([]);
   const [loading, setLoading] = useState(true);
   
@@ -58,41 +68,49 @@ export default function TeamCollaboration({ onEmailClick }: Props) {
   const [newTaskDesc, setNewTaskDesc] = useState("");
 
   const loadData = () => {
-    const tm = localStorage.getItem("scasi_team_members");
-    const te = localStorage.getItem("scasi_team_tasks");
-    const tw = localStorage.getItem("scasi_team_workspaces");
-    
-    if (tm) setTeamMembers(JSON.parse(tm));
-    else {
-      setTeamMembers(DEFAULT_TEAM);
-      localStorage.setItem("scasi_team_members", JSON.stringify(DEFAULT_TEAM));
-    }
-    if (te) setAssignedEmails(JSON.parse(te));
-    if (tw) {
-      setTeamProjects(JSON.parse(tw));
-    } else {
-      const tg = localStorage.getItem("scasi_team_groups");
-      if (tg) setTeamProjects(JSON.parse(tg));
+    try {
+      const tm = localStorage.getItem("scasi_team_members");
+      const te = localStorage.getItem("scasi_team_tasks");
+      const tw = localStorage.getItem("scasi_team_workspaces");
+
+      if (tm) setInternalTeamMembers(JSON.parse(tm));
+      else {
+        setInternalTeamMembers(DEFAULT_TEAM);
+        localStorage.setItem("scasi_team_members", JSON.stringify(DEFAULT_TEAM));
+      }
+      if (te) setInternalAssignedEmails(JSON.parse(te));
+      if (tw) {
+        setTeamProjects(JSON.parse(tw));
+      } else {
+        const tg = localStorage.getItem("scasi_team_groups");
+        if (tg) setTeamProjects(JSON.parse(tg));
+      }
+    } catch (e) {
+      console.error("Failed to load team data from localStorage:", e);
+      setInternalTeamMembers(DEFAULT_TEAM);
     }
   };
 
   useEffect(() => {
-    loadData();
+    // Only load from localStorage when no external data is provided
+    if (!externalTeamMembers && !externalAssignedEmails) {
+      loadData();
+      const handleSync = () => loadData();
+      window.addEventListener("teamSync", handleSync);
+      setLoading(false);
+      return () => window.removeEventListener("teamSync", handleSync);
+    }
     setLoading(false);
-    
-    const handleSync = () => loadData();
-    window.addEventListener("teamSync", handleSync);
-    return () => window.removeEventListener("teamSync", handleSync);
-  }, []);
+  }, [externalTeamMembers, externalAssignedEmails]);
 
   const saveTasks = (newTasks: AssignedEmail[]) => {
-    setAssignedEmails(newTasks);
+    setInternalAssignedEmails(newTasks);
     localStorage.setItem("scasi_team_tasks", JSON.stringify(newTasks));
     window.dispatchEvent(new Event("teamSync"));
   };
 
   const saveMembers = (newMembers: TeamMember[]) => {
-    setTeamMembers(newMembers);
+    setInternalTeamMembers(newMembers);
     localStorage.setItem("scasi_team_members", JSON.stringify(newMembers));
     window.dispatchEvent(new Event("teamSync"));
   };
@@ -105,12 +123,15 @@ export default function TeamCollaboration({ onEmailClick }: Props) {
 
   const executeInviteApi = async (email: string, name: string) => {
     try {
-      fetch("/api/team/invite", {
+      const res = await fetch("/api/team/invite", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, name }),
       });
-    } catch(e) {}
+      if (!res.ok) console.error("Invite API error:", res.status);
+    } catch(e) {
+      console.error('Failed to send team invite:', e);
+    }
   };
 
   const handleQuickInvite = async (forceWorkspaceAdd: boolean = false) => {
@@ -197,7 +218,12 @@ export default function TeamCollaboration({ onEmailClick }: Props) {
       setTimeout(() => {
         const aiResponse = { text: `AI: I've analyzed the recent updates for ${updatedProject.name}. Workload seems stable. Need me to generate any specific task reports?`, author: "Scasi AI", timestamp: Date.now(), isAi: true };
         const finalProject = { ...updatedProject, notes: [...updatedProject.notes, aiResponse] };
-        saveProjects(teamProjects.map(w => w.id === finalProject.id ? finalProject : w));
+        setTeamProjects(prev => {
+          const updated = prev.map(w => w.id === finalProject.id ? finalProject : w);
+          localStorage.setItem("scasi_team_workspaces", JSON.stringify(updated));
+          window.dispatchEvent(new Event("teamSync"));
+          return updated;
+        });
         setSelectedProject(finalProject);
         setAiTyping(false);
       }, 1500);
@@ -219,7 +245,7 @@ export default function TeamCollaboration({ onEmailClick }: Props) {
     setNewTaskDesc("");
   };
 
-  const updateTaskStatus = (emailId: string, newStatus: any) => {
+  const updateTaskStatus = (emailId: string, newStatus: AssignedEmail["status"]) => {
     const updated = assignedEmails.map(t => t.emailId === emailId ? { ...t, status: newStatus } : t);
     saveTasks(updated);
   };
@@ -346,7 +372,7 @@ export default function TeamCollaboration({ onEmailClick }: Props) {
                       const isMe = note.author === "You";
                       const isAi = note.isAi;
                       return (
-                        <div key={i} style={{ display: "flex", flexDirection: "column", alignItems: isMe ? "flex-end" : "flex-start", opacity: 0, animation: "fadeIn 0.3s forwards" }}>
+                        <div key={`${note.timestamp}-${i}`} style={{ display: "flex", flexDirection: "column", alignItems: isMe ? "flex-end" : "flex-start", opacity: 0, animation: "fadeIn 0.3s forwards" }}>
                           <div style={{ fontSize: 11, fontWeight: 700, color: "#A78BFA", marginBottom: 4, padding: "0 4px" }}>
                             {isAi ? "🤖 Scasi AI" : note.author} · {new Date(note.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                           </div>
@@ -598,7 +624,7 @@ export default function TeamCollaboration({ onEmailClick }: Props) {
                     <div style={{ marginTop: 16, padding: 16, background: "#FAF8FF", borderRadius: 14, border: "1px dashed rgba(167,139,250,0.4)" }}>
                       <div style={{ fontSize: 11, fontWeight: 800, color: "#A78BFA", textTransform: "uppercase", marginBottom: 10 }}>Thread</div>
                       {task.notes.map((note, i) => (
-                        <div key={i} style={{ fontSize: 13, color: "#18103A", marginBottom: 6, fontWeight: 600 }}>
+                        <div key={`${note.timestamp}-${i}`} style={{ fontSize: 13, color: "#18103A", marginBottom: 6, fontWeight: 600 }}>
                           <strong style={{ color: "#7C3AED" }}>{note.author}:</strong> {note.text}
                         </div>
                       ))}

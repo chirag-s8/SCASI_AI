@@ -1,50 +1,74 @@
 import { NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "../../auth/[...nextauth]/route";
 import { callOpenRouter } from "@/lib/openrouter";
 
 export async function POST(req: Request) {
   try {
+    const session = await getServerSession(authOptions);
+    if (!session) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const { subject, body, snippet, emailId, from } = await req.json();
 
     const emailText = `${subject}\n\n${body || snippet}`;
 
-    const prompt = `You are an AI calendar assistant. Extract ALL calendar events, meetings, deadlines, and appointments from this email.
+    const now = new Date();
+    const currentDate = now.toISOString().split('T')[0];
+    const dayOfWeek = now.toLocaleDateString('en-US', { weekday: 'long' });
+
+    const prompt = `You are Scasi's calendar extraction assistant. Extract ALL calendar-worthy events from this email.
 
 Email From: ${from || "Unknown"}
 Subject: ${subject}
 Content: ${emailText}
 
-Extract and return a JSON array with:
-- Meetings (video calls, in-person meetings, calls)
-- Deadlines (submission dates, due dates, expiry dates)
-- Appointments (scheduled events, interviews)
-- Reminders (follow-ups, check-ins)
+Current date: ${currentDate} (${dayOfWeek})
+
+EXTRACT these event types:
+- Meetings: video calls, in-person meetings, phone calls, syncs, standups, 1:1s
+- Deadlines: submission dates, due dates, expiry dates, renewal dates, RSVP deadlines
+- Appointments: interviews, scheduled events, doctor visits, client sessions
+- Reminders: follow-ups, check-ins, "let's touch base next week", review dates
 
 For each event, extract:
-1. title: Clear, concise event name
-2. date: YYYY-MM-DD format (if "today" use current date, "tomorrow" use next day, etc.)
-3. time: HH:MM format in 24-hour (if mentioned, otherwise null)
+1. title: Clear, specific event name (not just "Meeting" — include who/what, e.g. "Budget Review with Sarah")
+2. date: YYYY-MM-DD format. Convert relative dates:
+   - "today" → ${currentDate}
+   - "tomorrow" → next day from ${currentDate}
+   - "next Monday" → calculate the actual date
+   - "in 2 weeks" → calculate the actual date
+   - "end of month" → last day of current month
+3. time: HH:MM in 24-hour format. Convert:
+   - "3pm" → "15:00"
+   - "noon" → "12:00"
+   - "morning" → "09:00" (reasonable default)
+   - If timezone mentioned (EST, PST, etc.), note it in description
+   - If no time mentioned → null
 4. type: "meeting" | "deadline" | "appointment" | "reminder"
-5. description: Brief context from email
-6. reminderMinutes: 15 for meetings, 60 for deadlines, 30 for appointments
+5. description: Brief context from the email (1 sentence)
+6. reminderMinutes: 15 for meetings, 60 for deadlines, 30 for appointments, 15 for reminders
+
+RULES:
+- Return ONLY a valid JSON array, no other text
+- If no events found, return []
+- Extract ALL possible events, even implied ones ("let's meet next week" → create a tentative meeting)
+- For recurring events ("every Monday", "weekly standup"), extract the NEXT occurrence only
+- Don't extract past events unless the email is about rescheduling them
+- If a timezone is mentioned, include it in the description field
 
 Return format:
 [
   {
-    "title": "Client Budget Meeting",
+    "title": "Q1 Budget Review with Client Team",
     "date": "2026-02-25",
     "time": "14:00",
     "type": "meeting",
-    "description": "Discuss Q1 budget with client team",
+    "description": "Discuss Q1 budget proposal — Zoom link in email (EST)",
     "reminderMinutes": 15
   }
-]
-
-IMPORTANT: 
-- Return ONLY valid JSON array, no other text
-- If no events found, return []
-- Extract ALL possible events, even if vague
-- For relative dates like "tomorrow", "next week", calculate actual date
-- Current date is ${new Date().toISOString().split('T')[0]}`;
+]`;
 
     const response = await callOpenRouter([
       { role: "user", content: prompt }

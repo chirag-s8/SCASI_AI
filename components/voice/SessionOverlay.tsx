@@ -43,8 +43,8 @@ export default function SessionOverlay({
   transcript,
   messages = [],
 }: SessionOverlayProps) {
-  const activeState = state === "idle" ? "listening" : state;
-  const config = ringVariants[activeState as Exclude<VoiceState, "idle">];
+  const activeState = (state === "idle" ? "listening" : state) as Exclude<VoiceState, "idle">;
+  const config = ringVariants[activeState] ?? ringVariants["listening"];
   const color = stateColor[state];
   const scrollRef = useRef<HTMLDivElement>(null);
   const hasContent = messages.length > 0 || !!transcript;
@@ -182,7 +182,7 @@ export default function SessionOverlay({
                 }}
               >
                 {messages.map((msg, i) => (
-                  <div key={i} style={{ display: "flex", gap: 9, alignItems: "flex-start" }}>
+                  <div key={`${msg.role}-${i}`} style={{ display: "flex", gap: 9, alignItems: "flex-start" }}>
                     <div style={{
                       width: 24, height: 24, borderRadius: "50%",
                       flexShrink: 0, marginTop: 1,

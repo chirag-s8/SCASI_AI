@@ -13,6 +13,9 @@ type CalendarEvent = {
 };
 
 type Props = {
+  events?: CalendarEvent[];
+  onAddEvent?: (event: CalendarEvent) => Promise<void>;
+  onDeleteEvent?: (id: string) => Promise<void>;
   onEventClick?: (event: CalendarEvent) => void;
 };
 
@@ -23,12 +26,15 @@ const MOCK_EVENTS: CalendarEvent[] = [
   { id: "m4", title: "Review Q4 Roadmap", date: new Date(Date.now() + 172800000), type: "reminder" },
 ];
 
-export default function CalendarView({ onEventClick }: Props) {
+export default function CalendarView({ events: externalEvents, onAddEvent, onDeleteEvent, onEventClick }: Props) {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
-  const [events, setEvents] = useState<CalendarEvent[]>([]);
+  const [internalEvents, setInternalEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Use external events when provided, otherwise fall back to internal localStorage events
+  const events = externalEvents ?? internalEvents;
 
   // Modal Form State
   const [newEventTitle, setNewEventTitle] = useState("");
@@ -40,23 +46,26 @@ export default function CalendarView({ onEventClick }: Props) {
     const rawEvents = localStorage.getItem("scasi_calendar_events");
     if (rawEvents) {
       const parsed = JSON.parse(rawEvents);
-      setEvents(parsed.map((e: any) => ({ ...e, date: new Date(e.date) })));
+      setInternalEvents(parsed.map((e: any) => ({ ...e, date: new Date(e.date) })));
     } else {
-      setEvents(MOCK_EVENTS);
+      setInternalEvents(MOCK_EVENTS);
       localStorage.setItem("scasi_calendar_events", JSON.stringify(MOCK_EVENTS));
     }
   };
 
   useEffect(() => {
-    loadEvents();
+    // Only load from localStorage when no external events are provided
+    if (!externalEvents) {
+      loadEvents();
+      const handleSync = () => loadEvents();
+      window.addEventListener("calendarSync", handleSync);
+      setLoading(false);
+      return () => window.removeEventListener("calendarSync", handleSync);
+    }
     setLoading(false);
+  }, [externalEvents]);
 
-    const handleSync = () => loadEvents();
-    window.addEventListener("calendarSync", handleSync);
-    return () => window.removeEventListener("calendarSync", handleSync);
-  }, []);
-
-  const handleSaveEvent = (e: React.FormEvent) => {
+  const handleSaveEvent = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newEventTitle || !newEventDate) return;
 
@@ -68,10 +77,14 @@ export default function CalendarView({ onEventClick }: Props) {
         type: newEventType as any
     };
 
-    const updatedEvents = [...events, newEvent];
-    setEvents(updatedEvents);
-    localStorage.setItem("scasi_calendar_events", JSON.stringify(updatedEvents));
-    window.dispatchEvent(new Event("calendarSync")); // Notify globally
+    if (onAddEvent) {
+      await onAddEvent(newEvent);
+    } else {
+      const updatedEvents = [...events, newEvent];
+      setInternalEvents(updatedEvents);
+      localStorage.setItem("scasi_calendar_events", JSON.stringify(updatedEvents));
+      window.dispatchEvent(new Event("calendarSync"));
+    }
     
     setShowAddModal(false);
     setNewEventTitle("");

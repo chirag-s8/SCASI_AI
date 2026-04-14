@@ -16,9 +16,16 @@ const RerankOutputSchema = z.object({
     })),
 });
 
-const RERANK_SYSTEM = `You are a relevance scoring expert. Given a query and a list of text chunks, score each chunk's relevance to the query on a scale of 0 to 1.
+const RERANK_SYSTEM = `You are a relevance scoring expert for an email search system. Given a query and a list of email text chunks, score each chunk's relevance to the query on a scale of 0 to 1.
+
+SCORING CRITERIA (in order of importance):
+1. SEMANTIC MATCH (0.4 weight): Does the chunk directly answer or relate to the query topic?
+2. SPECIFICITY (0.3 weight): Does the chunk contain specific, actionable information (names, dates, decisions) vs generic content?
+3. RECENCY SIGNALS (0.2 weight): Does the chunk appear to be from a recent/active conversation vs old/archived content?
+4. COMPLETENESS (0.1 weight): Does the chunk contain enough context to be useful on its own?
+
 Return JSON with format: { "rankings": [{ "index": 0, "score": 0.95 }, ...] }
-Score 1.0 = perfectly relevant, 0.0 = completely irrelevant. Be precise.`;
+Score 1.0 = perfectly relevant, 0.0 = completely irrelevant. Be precise and discriminating — don't score everything above 0.5.`;
 
 function buildRerankPrompt(query: string, chunks: ScoredChunk[]): string {
     const chunkList = chunks.map((c, i) =>
