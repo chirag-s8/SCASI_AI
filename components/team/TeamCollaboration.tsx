@@ -600,7 +600,7 @@ export default function TeamCollaboration({ teamMembers: externalTeamMembers, as
                   <div style={{ display: "flex", gap: 12, alignItems: "center", marginBottom: 14 }}>
                     <select 
                       value={task.status} 
-                      onChange={(e) => updateTaskStatus(task.emailId, e.target.value)}
+                      onChange={(e) => updateTaskStatus(task.emailId, e.target.value as AssignedEmail["status"])}
                       className={`badge badge-${task.status}`}
                       style={{ outline: "none", cursor: "pointer", appearance: "none", paddingRight: 24 }}
                     >

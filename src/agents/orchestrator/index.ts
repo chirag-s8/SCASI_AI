@@ -184,19 +184,21 @@ export class OrchestratorAgent implements Agent<OrchestratorRequest, Orchestrato
             ? await this.loadSessionHistory(validated.sessionId)
             : [];
 
-        const intent = await this.detectIntent(validated.userMessage, traceId);
+        const signal = ctx.signal;
+
+        const intent = await this.detectIntent(validated.userMessage, traceId, signal);
 
         let result: { answer: string; trace: AgentResult[]; steps?: ReActStep[] };
 
         switch (intent.workflow) {
             case 'handle_for_me':
-                result = await handleForMe(ctx, validated);
+                result = await handleForMe(ctx, validated, signal);
                 break;
             case 'sort_inbox':
-                result = await sortInbox(ctx, validated);
+                result = await sortInbox(ctx, validated, signal);
                 break;
             case 'reply_to':
-                result = await replyTo(ctx, validated, intent.target ?? 'unknown');
+                result = await replyTo(ctx, validated, intent.target ?? 'unknown', signal);
                 break;
             default:
                 result = await this.reactLoop(ctx, validated, history, traceId);
@@ -242,7 +244,8 @@ export class OrchestratorAgent implements Agent<OrchestratorRequest, Orchestrato
             : [];
 
         // 1. Intent detection
-        const intent = await this.detectIntent(validated.userMessage, traceId);
+        const signal = ctx.signal;
+        const intent = await this.detectIntent(validated.userMessage, traceId, signal);
         yield { type: 'intent', workflow: intent.workflow, reasoning: intent.reasoning };
 
         let answer: string;
@@ -255,7 +258,7 @@ export class OrchestratorAgent implements Agent<OrchestratorRequest, Orchestrato
                 for (const stepName of ['nlp.classify', 'nlp.summarize', 'nlp.extractTasks', 'nlp.draftReply', 'orchestrator.followUp']) {
                     yield { type: 'step', agentName: stepName, status: 'running' };
                 }
-                const result = await handleForMe(ctx, validated);
+                const result = await handleForMe(ctx, validated, signal);
                 for (const t of result.trace) {
                     yield { type: 'step', agentName: t.agentName, status: 'completed', durationMs: t.durationMs, output: t.output };
                 }
@@ -264,7 +267,7 @@ export class OrchestratorAgent implements Agent<OrchestratorRequest, Orchestrato
             }
             case 'sort_inbox': {
                 yield { type: 'step', agentName: 'workflow.sortInbox', status: 'running' };
-                const result = await sortInbox(ctx, validated);
+                const result = await sortInbox(ctx, validated, signal);
                 for (const t of result.trace) {
                     yield { type: 'step', agentName: t.agentName, status: 'completed', durationMs: t.durationMs, output: t.output };
                 }
@@ -273,7 +276,7 @@ export class OrchestratorAgent implements Agent<OrchestratorRequest, Orchestrato
             }
             case 'reply_to': {
                 yield { type: 'step', agentName: 'workflow.replyTo', status: 'running' };
-                const result = await replyTo(ctx, validated, intent.target ?? 'unknown');
+                const result = await replyTo(ctx, validated, intent.target ?? 'unknown', signal);
                 for (const t of result.trace) {
                     yield { type: 'step', agentName: t.agentName, status: 'completed', durationMs: t.durationMs, output: t.output };
                 }
@@ -333,6 +336,7 @@ export class OrchestratorAgent implements Agent<OrchestratorRequest, Orchestrato
                 traceId,
                 temperature: 0.5,
                 maxTokens: 1024,
+                signal: ctx.signal,
             });
 
             if (!result.data) {
@@ -375,7 +379,7 @@ export class OrchestratorAgent implements Agent<OrchestratorRequest, Orchestrato
 
                 if (tool) {
                     try {
-                        const observation = await tool.execute(response.toolInput, ctx);
+                        const observation = await tool.execute(response.toolInput, ctx, ctx.signal);
                         const toolDuration = Date.now() - toolStart;
 
                         yield {
@@ -391,6 +395,8 @@ export class OrchestratorAgent implements Agent<OrchestratorRequest, Orchestrato
                             : JSON.stringify(observation, null, 2).slice(0, 3000);
                         currentPrompt += `\n\nThought: ${response.thought}\nAction: ${response.tool}\nObservation: ${obsStr}\n\nContinue reasoning.`;
                     } catch (err: unknown) {
+                        // Rethrow AbortError — don't swallow cancellation as a tool failure
+                        if (err instanceof Error && err.name === 'AbortError') throw err;
                         const errMsg = err instanceof Error ? err.message : String(err);
                         yield {
                             type: 'tool_result' as const,
@@ -512,7 +518,7 @@ export class OrchestratorAgent implements Agent<OrchestratorRequest, Orchestrato
                         durationMs: event.durationMs,
                     };
                     return yield* this.streamFinalAnswer(
-                        event.currentPrompt, event.fallbackText, undefined, traceId
+                        ctx, event.currentPrompt, event.fallbackText, undefined, traceId
                     );
 
                 case 'final_answer':
@@ -524,7 +530,7 @@ export class OrchestratorAgent implements Agent<OrchestratorRequest, Orchestrato
                         output: { thought: event.thought },
                     };
                     return yield* this.streamFinalAnswer(
-                        event.currentPrompt, event.thought, event.answer, traceId
+                        ctx, event.currentPrompt, event.thought, event.answer, traceId
                     );
 
                 case 'tool_request':
@@ -554,7 +560,7 @@ export class OrchestratorAgent implements Agent<OrchestratorRequest, Orchestrato
 
                 case 'max_iterations':
                     return yield* this.streamFinalAnswer(
-                        event.currentPrompt, 'Maximum reasoning steps reached', undefined, traceId
+                        ctx, event.currentPrompt, 'Maximum reasoning steps reached', undefined, traceId
                     );
             }
         }
@@ -567,6 +573,7 @@ export class OrchestratorAgent implements Agent<OrchestratorRequest, Orchestrato
      * Yields ChatStreamEvent tokens and returns the collected full answer text.
      */
     private async *streamFinalAnswer(
+        ctx: AgentContext,
         conversationContext: string,
         lastThought: string,
         plannedAnswer: string | undefined,
@@ -591,6 +598,7 @@ export class OrchestratorAgent implements Agent<OrchestratorRequest, Orchestrato
             temperature: 0.2,
             maxTokens: 600,
             traceId,
+            signal: ctx.signal,
         })) {
             collected += token;
             yield { type: 'token', text: token };
@@ -603,7 +611,7 @@ export class OrchestratorAgent implements Agent<OrchestratorRequest, Orchestrato
     // Private helpers
     // -----------------------------------------------------------------------
 
-    private async detectIntent(userMessage: string, traceId: string): Promise<Intent> {
+    private async detectIntent(userMessage: string, traceId: string, signal?: AbortSignal): Promise<Intent> {
         try {
             const result = await llmRouter.generateText('route', userMessage, {
                 schema: IntentSchema,
@@ -611,10 +619,13 @@ export class OrchestratorAgent implements Agent<OrchestratorRequest, Orchestrato
                 traceId,
                 temperature: 0.2,
                 maxTokens: 256,
+                signal,
             });
             if (result.data) return result.data;
-        } catch {
-            // Fall through to default
+        } catch (err: unknown) {
+            // Rethrow AbortError — don't swallow cancellation
+            if (err instanceof Error && err.name === 'AbortError') throw err;
+            // Fall through to default for real routing failures
         }
         return { workflow: 'general', reasoning: 'Default fallback' };
     }

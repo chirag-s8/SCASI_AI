@@ -15,6 +15,7 @@ import {
     RagUpsertEmailRequestSchema,
     RagQueryRequestSchema,
 } from './types';
+import { createAbortError } from '../../llm/router';
 import { chunkEmail } from './chunker';
 import { embedTexts } from './embedder';
 import {
@@ -38,12 +39,13 @@ export class RagAgent implements Agent<RagRequest, RagResponse> {
     async execute(ctx: AgentContext, req: RagRequest): Promise<RagResponse> {
         const validated = RagRequestSchema.parse(req);
         const traceId = ctx.traceId as string;
+        const signal = ctx.signal;
 
         switch (validated.action) {
             case 'upsert':
-                return this.upsertEmails(validated, traceId);
+                return this.upsertEmails(validated, traceId, signal);
             case 'query':
-                return this.query(validated, traceId);
+                return this.query(validated, { traceId, signal });
         }
     }
 
@@ -53,7 +55,8 @@ export class RagAgent implements Agent<RagRequest, RagResponse> {
 
     async upsertEmails(
         input: RagUpsertEmailRequest,
-        traceId?: string
+        traceId?: string,
+        signal?: AbortSignal
     ): Promise<RagUpsertEmailResponse> {
         const validated = RagUpsertEmailRequestSchema.parse(input);
         let indexed = 0;
@@ -61,6 +64,10 @@ export class RagAgent implements Agent<RagRequest, RagResponse> {
         const errors: Array<{ gmailId: string; error: string }> = [];
 
         for (const email of validated.emails) {
+            // Stop processing if the request was cancelled mid-batch
+            if (signal?.aborted) {
+                throw createAbortError('Aborted during email upsert batch');
+            }
             try {
                 // 1. Upsert email to DB (status: pending)
                 const emailId = await upsertEmail(validated.userId, email);
@@ -83,7 +90,7 @@ export class RagAgent implements Agent<RagRequest, RagResponse> {
                 // 4. Embed all chunk texts (graceful — skips if provider unavailable)
                 if (!validated.skipEmbedding) {
                     const chunkTexts = chunks.map(c => c.chunkText);
-                    const embeddings = await embedTexts(chunkTexts, traceId);
+                    const embeddings = await embedTexts(chunkTexts, traceId, signal);
 
                     // 5. Update chunks with embeddings (only for non-null results)
                     const embeddingMap = new Map<number, number[]>();
@@ -107,6 +114,8 @@ export class RagAgent implements Agent<RagRequest, RagResponse> {
 
                 indexed++;
             } catch (err: unknown) {
+                // Rethrow AbortError — don't swallow cancellation as an indexing failure
+                if (err instanceof Error && err.name === 'AbortError') throw err;
                 failed++;
                 const msg = err instanceof Error ? err.message : String(err);
                 errors.push({ gmailId: email.gmailId, error: msg });
@@ -117,9 +126,12 @@ export class RagAgent implements Agent<RagRequest, RagResponse> {
         return { indexed, failed, errors };
     }
 
+    /** Query the RAG index for relevant chunks.
+     *  Uses an options object for the signal/traceId params to avoid brittle
+     *  positional argument changes when new options are added. */
     async query(
         input: RagQueryRequest,
-        traceId?: string
+        options?: { signal?: AbortSignal; traceId?: string },
     ): Promise<RagQueryResponse> {
         const validated = RagQueryRequestSchema.parse(input);
 
@@ -129,7 +141,8 @@ export class RagAgent implements Agent<RagRequest, RagResponse> {
             query: validated.query,
             topK: validated.topK,
             hybridWeight: validated.hybridWeight,
-            traceId,
+            traceId: options?.traceId,
+            signal: options?.signal,
         });
 
         // 2. Filter by similarity threshold
@@ -143,7 +156,7 @@ export class RagAgent implements Agent<RagRequest, RagResponse> {
 
         // 3. Rerank (skips if <= 5 results to save credits)
         const reranked = validated.rerank
-            ? await rerankChunks(validated.query, filtered, traceId)
+            ? await rerankChunks(validated.query, filtered, options?.traceId, options?.signal)
             : filtered;
 
         // 4. Select context within token budget

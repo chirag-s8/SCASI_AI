@@ -8,9 +8,26 @@ import { traceLLMCall } from './tracing';
 /** Must match the vector(768) column in Supabase and hybridSearch.ts. */
 const EMBED_DIM = 768;
 
+/** Create an AbortError that works across runtimes.
+ *  DOMException('Aborted', 'AbortError') requires Node 17+ / browser.
+ *  On older runtimes, fall back to a plain Error with .name = 'AbortError'.
+ *
+ *  Exported so other modules (e.g. hybridSearch) can create consistent abort errors
+ *  without depending on DOMException directly. */
+export function createAbortError(message: string = 'Aborted'): Error {
+    if (typeof DOMException !== 'undefined') {
+        return new DOMException(message, 'AbortError');
+    }
+    const err = new Error(message);
+    err.name = 'AbortError';
+    return err;
+}
+
 export class LLMRouter {
     private groqClients = new Map<string, Groq>();
-    private localEmbedder: any = null; // Store Transformers.js pipeline
+    // Store the init Promise (not the resolved pipeline) to avoid a race condition
+    // where concurrent callers each trigger a separate download + instantiation.
+    private localEmbedderPromise: Promise<any> | null = null;
 
     private getGroqClient(apiKeyEnv: string): Groq {
         let client = this.groqClients.get(apiKeyEnv);
@@ -76,6 +93,11 @@ export class LLMRouter {
     ): Promise<GenerationResult<T>> {
         const { schema, traceId, cacheKey, retries = 3 } = options;
 
+        // Short-circuit: if the caller already aborted, don't start any work
+        if (options.signal?.aborted) {
+            throw createAbortError('Aborted');
+        }
+
         if (cacheKey) {
             const cached = await llmCache.get<GenerationResult<T>>(`gen:${cacheKey}`);
             if (cached) {
@@ -117,7 +139,7 @@ export class LLMRouter {
                             temperature: options.temperature ?? 0.7,
                             max_tokens: options.maxTokens,
                             response_format: schema ? { type: 'json_object' } : undefined
-                        });
+                        }, { signal: options.signal });
 
                         resultText = resp.choices[0]?.message?.content || '';
                         const rawUsage = resp.usage || { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 };
@@ -146,7 +168,8 @@ export class LLMRouter {
                                 'HTTP-Referer': 'http://localhost:3000',
                                 'X-Title': 'Scasi-AI'
                             },
-                            body: JSON.stringify(body)
+                            body: JSON.stringify(body),
+                            signal: options.signal,
                         });
 
                         if (!resp.ok) {
@@ -180,7 +203,8 @@ export class LLMRouter {
                                 'Content-Type': 'application/json',
                                 'api-subscription-key': apiKey,
                             },
-                            body: JSON.stringify(body)
+                            body: JSON.stringify(body),
+                            signal: options.signal,
                         });
 
                         if (!resp.ok) {
@@ -228,6 +252,13 @@ export class LLMRouter {
                     return finalResult;
 
                 } catch (err: unknown) {
+                    // Rethrow AbortError immediately — don't waste time trying fallback models.
+                    // Use err.name check instead of instanceof DOMException to avoid
+                    // ReferenceError on runtimes where DOMException is not defined.
+                    if (err instanceof Error && err.name === 'AbortError') {
+                        traceLLMCall(traceId, 'generateText', model.id, startTime, undefined, err);
+                        throw err;
+                    }
                     const errMsg = err instanceof Error ? err.message : String(err);
                     console.error(`[LLMRouter] API call failed on ${model.id} for task ${task}: ${errMsg}`);
                     traceLLMCall(traceId, 'generateText', model.id, startTime, undefined, err);
@@ -247,6 +278,11 @@ export class LLMRouter {
         prompt: string,
         options: GenerationOptions = {}
     ): AsyncIterable<string> {
+        // Short-circuit: if the caller already aborted, don't start any work
+        if (options.signal?.aborted) {
+            throw createAbortError('Aborted');
+        }
+
         const policy = taskPolicies[task];
         const modelChain = [policy.primary, ...policy.fallbackChain];
         const estPromptTokens = Math.ceil(
@@ -260,6 +296,8 @@ export class LLMRouter {
             let lastError: unknown;
 
             try {
+                // Check abort before each stream attempt
+                if (options.signal?.aborted) throw createAbortError('Aborted');
                 yield* this.streamFromModel(model, prompt, options, (text) => { collectedText += text; });
                 // Success — trace and return
                 const estCompletionTokens = Math.ceil(collectedText.length / 4);
@@ -271,6 +309,11 @@ export class LLMRouter {
                 return;
             } catch (err) {
                 lastError = err;
+                // Rethrow AbortError immediately — don't try fallback models
+                if (err instanceof Error && err.name === 'AbortError') {
+                    traceLLMCall(options.traceId, 'streamText', model.id, startTime, undefined, err);
+                    throw err;
+                }
                 const errMsg = err instanceof Error ? err.message : String(err);
                 console.warn(`[LLMRouter] streamText failed on ${model.id} (attempt ${attempt + 1}/${modelChain.length}): ${errMsg}`);
                 traceLLMCall(options.traceId, 'streamText', model.id, startTime, undefined, lastError);
@@ -290,6 +333,8 @@ export class LLMRouter {
         options: GenerationOptions,
         onToken: (text: string) => void
     ): AsyncIterable<string> {
+        const signal = options.signal;
+
         if (model.provider === 'groq') {
             const groq = this.getGroqClient(model.apiKeyEnv);
             const stream = await groq.chat.completions.create({
@@ -301,9 +346,12 @@ export class LLMRouter {
                 temperature: options.temperature ?? 0.7,
                 max_tokens: options.maxTokens,
                 stream: true
-            });
+            }, { signal });
 
             for await (const chunk of stream) {
+                if (signal?.aborted) {
+                    throw createAbortError('Aborted during Groq stream');
+                }
                 const text = chunk.choices[0]?.delta?.content || '';
                 if (text) { onToken(text); yield text; }
             }
@@ -327,7 +375,8 @@ export class LLMRouter {
                     temperature: options.temperature ?? 0.7,
                     max_tokens: options.maxTokens,
                     stream: true
-                })
+                }),
+                signal,
             });
 
             if (!resp.ok) throw new Error(`OpenRouter Stream Error: ${resp.status}`);
@@ -338,6 +387,10 @@ export class LLMRouter {
             let buffer = '';
 
             while (true) {
+                if (signal?.aborted) {
+                    await reader.cancel().catch(() => {});
+                    throw createAbortError('Aborted during OpenRouter stream');
+                }
                 const { done, value } = await reader.read();
                 if (done) break;
 
@@ -379,7 +432,8 @@ export class LLMRouter {
                     temperature: options.temperature ?? 0.7,
                     max_tokens: options.maxTokens,
                     stream: true
-                })
+                }),
+                signal,
             });
 
             if (!resp.ok) throw new Error(`Sarvam Stream Error: ${resp.status}`);
@@ -390,6 +444,10 @@ export class LLMRouter {
             let buffer = '';
 
             while (true) {
+                if (signal?.aborted) {
+                    await reader.cancel().catch(() => {});
+                    throw createAbortError('Aborted during Sarvam stream');
+                }
                 const { done, value } = await reader.read();
                 if (done) break;
 
@@ -419,12 +477,17 @@ export class LLMRouter {
 
     async embed(texts: string[], options: EmbedOptions = {}): Promise<EmbedResult> {
         const startTime = Date.now();
-        const { traceId } = options;
+        const { traceId, signal } = options;
         const model = taskPolicies['embed'].primary;
-        
+
+        // Short-circuit: if the caller already aborted, don't start any work
+        if (signal?.aborted) {
+            throw createAbortError('Aborted');
+        }
+
         try {
             if (model.provider === 'local') {
-                return await this.embedViaLocal(texts, model, traceId, startTime);
+                return await this.embedViaLocal(texts, model, traceId, startTime, signal);
             }
             
             const apiKey = this.getApiKey(model);
@@ -433,10 +496,15 @@ export class LLMRouter {
             }
 
             if (model.provider === 'google') {
-                return await this.embedViaGemini(texts, model, apiKey, traceId, startTime);
+                return await this.embedViaGemini(texts, model, apiKey, traceId, startTime, signal);
             }
-            return await this.embedViaOpenRouter(texts, model, apiKey, traceId, startTime);
+            return await this.embedViaOpenRouter(texts, model, apiKey, traceId, startTime, signal);
         } catch (err: unknown) {
+            // Rethrow AbortError immediately
+            if (err instanceof Error && err.name === 'AbortError') {
+                traceLLMCall(traceId, 'embed', model.id, startTime, undefined, err);
+                throw err;
+            }
             traceLLMCall(traceId, 'embed', model.id, startTime, undefined, err);
             throw err;
         }
@@ -452,7 +520,8 @@ export class LLMRouter {
         model: ModelConfig,
         apiKey: string,
         traceId: string | undefined,
-        startTime: number
+        startTime: number,
+        signal?: AbortSignal
     ): Promise<EmbedResult> {
         const batchSize = 100; // Gemini batch limit
         const allEmbeddings: number[][] = [];
@@ -460,6 +529,7 @@ export class LLMRouter {
 
         for (let i = 0; i < texts.length; i += batchSize) {
             const batchTexts = texts.slice(i, i + batchSize);
+            if (signal?.aborted) throw createAbortError('Aborted');
 
             const resp = await fetch(
                 `https://generativelanguage.googleapis.com/v1beta/models/${model.id}:batchEmbedContents?key=${apiKey}`,
@@ -473,6 +543,7 @@ export class LLMRouter {
                             outputDimensionality: EMBED_DIM,
                         })),
                     }),
+                    signal,
                 }
             );
 
@@ -505,13 +576,16 @@ export class LLMRouter {
         model: ModelConfig,
         apiKey: string,
         traceId: string | undefined,
-        startTime: number
+        startTime: number,
+        signal?: AbortSignal
     ): Promise<EmbedResult> {
         const batchSize = 100;
         const allEmbeddings: number[][] = [];
         let totalTokens = 0;
 
         for (let i = 0; i < texts.length; i += batchSize) {
+            if (signal?.aborted) throw createAbortError('Aborted');
+
             const batchTexts = texts.slice(i, i + batchSize);
 
             const resp = await fetch('https://openrouter.ai/api/v1/embeddings', {
@@ -527,6 +601,7 @@ export class LLMRouter {
                     input: batchTexts,
                     dimensions: EMBED_DIM,
                 }),
+                signal,
             });
 
             if (!resp.ok) {
@@ -557,16 +632,30 @@ export class LLMRouter {
         texts: string[],
         model: ModelConfig,
         traceId: string | undefined,
-        startTime: number
+        startTime: number,
+        signal?: AbortSignal
     ): Promise<EmbedResult> {
-        if (!this.localEmbedder) {
-            const { pipeline, env } = await import('@xenova/transformers');
-            // Disable local models checking since we'll download from HF hub the first time
-            env.allowLocalModels = false;
-            // Use quantized for highly efficient CPU execution
-            this.localEmbedder = await pipeline('feature-extraction', model.id, {
-                quantized: true,
-            });
+        // Store the Promise so concurrent callers all await the same init —
+        // avoids multiple redundant downloads and model instantiations.
+        if (!this.localEmbedderPromise) {
+            this.localEmbedderPromise = (async () => {
+                const { pipeline, env } = await import('@xenova/transformers');
+                // Disable local models checking since we'll download from HF hub the first time
+                env.allowLocalModels = false;
+                // Use quantized for highly efficient CPU execution
+                return await pipeline('feature-extraction', model.id, {
+                    quantized: true,
+                });
+            })();
+        }
+        // Await the shared promise, but reset it on rejection so subsequent
+        // calls can retry (avoids sticky rejection after transient failures).
+        let localEmbedder: any;
+        try {
+            localEmbedder = await this.localEmbedderPromise;
+        } catch (err) {
+            this.localEmbedderPromise = null;
+            throw err;
         }
         
         let totalTokens = 0;
@@ -574,9 +663,12 @@ export class LLMRouter {
 
         const batchSize = 100;
         for (let i = 0; i < texts.length; i += batchSize) {
+             // Check abort between batches — local embeddings can't truly abort mid-batch
+             if (signal?.aborted) throw createAbortError('Aborted');
+
              const batchTexts = texts.slice(i, i + batchSize);
              
-             const output = await this.localEmbedder(batchTexts, { pooling: 'mean', normalize: true });
+             const output = await localEmbedder(batchTexts, { pooling: 'mean', normalize: true });
              
              // The output tensor is shape [batchSize, dim]
              const data = output.tolist();

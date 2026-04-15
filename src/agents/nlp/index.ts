@@ -70,20 +70,21 @@ export class NlpAgent implements Agent<NlpRequest, NlpResponse> {
     async execute(ctx: AgentContext, req: NlpRequest): Promise<NlpResponse> {
         const validated = NlpRequestSchema.parse(req);
         const traceId = ctx.traceId as string;
+        const signal = ctx.signal;
 
         switch (validated.action) {
             case 'classify':
                 return this.classify(validated, traceId);
             case 'summarize':
-                return this.summarize(validated, traceId);
+                return this.summarize(validated, traceId, signal);
             case 'draftReply':
-                return this.draftReply(validated, traceId);
+                return this.draftReply(validated, traceId, signal);
             case 'extractTasks':
-                return this.extractTasks(validated, traceId);
+                return this.extractTasks(validated, traceId, signal);
             case 'extractEntities':
-                return this.extractEntities(validated, traceId);
+                return this.extractEntities(validated, traceId, signal);
             case 'explain':
-                return this.explain(validated, traceId);
+                return this.explain(validated, traceId, signal);
         }
     }
 
@@ -95,6 +96,10 @@ export class NlpAgent implements Agent<NlpRequest, NlpResponse> {
     // classify
     // -----------------------------------------------------------------------
 
+    /** Classify an email by keyword rules — purely local, no LLM calls.
+     *  Signal is not accepted because this method never makes async I/O
+     *  that could be cancelled. If a future refactor adds LLM-based
+     *  classification, signal must be threaded here at that time. */
     async classify(input: ClassifyInput, _traceId?: string): Promise<ClassifyOutput> {
         const validated = ClassifyInputSchema.parse(input);
         const text = `${validated.subject} ${validated.snippet} ${validated.from ?? ''}`.toLowerCase();
@@ -155,7 +160,7 @@ export class NlpAgent implements Agent<NlpRequest, NlpResponse> {
     // summarize
     // -----------------------------------------------------------------------
 
-    async summarize(input: SummarizeInput, traceId?: string): Promise<SummarizeOutput> {
+    async summarize(input: SummarizeInput, traceId?: string, signal?: AbortSignal): Promise<SummarizeOutput> {
         const validated = SummarizeInputSchema.parse(input);
         const result = await llmRouter.generateText<SummarizeOutput>('summarize', summarizeUserPrompt(validated), {
             schema: SummarizeOutputSchema,
@@ -163,6 +168,7 @@ export class NlpAgent implements Agent<NlpRequest, NlpResponse> {
             traceId,
             temperature: 0.4,
             maxTokens: 512,
+            signal,
         });
         if (!result.data) throw new ScasiError({ code: 'NLP_PARSE_ERROR', message: 'No structured data returned for summarize' });
         return result.data;
@@ -172,7 +178,7 @@ export class NlpAgent implements Agent<NlpRequest, NlpResponse> {
     // draftReply
     // -----------------------------------------------------------------------
 
-    async draftReply(input: DraftReplyInput, traceId?: string): Promise<DraftReplyOutput> {
+    async draftReply(input: DraftReplyInput, traceId?: string, signal?: AbortSignal): Promise<DraftReplyOutput> {
         const validated = DraftReplyInputSchema.parse(input);
         const result = await llmRouter.generateText<DraftReplyOutput>('reply', replyUserPrompt(validated), {
             schema: DraftReplyOutputSchema,
@@ -180,6 +186,7 @@ export class NlpAgent implements Agent<NlpRequest, NlpResponse> {
             traceId,
             temperature: 0.7,
             maxTokens: 1024,
+            signal,
         });
         if (!result.data) throw new ScasiError({ code: 'NLP_PARSE_ERROR', message: 'No structured data returned for draftReply' });
         return result.data;
@@ -189,7 +196,7 @@ export class NlpAgent implements Agent<NlpRequest, NlpResponse> {
     // extractTasks
     // -----------------------------------------------------------------------
 
-    async extractTasks(input: ExtractTasksInput, traceId?: string): Promise<ExtractTasksOutput> {
+    async extractTasks(input: ExtractTasksInput, traceId?: string, signal?: AbortSignal): Promise<ExtractTasksOutput> {
         const validated = ExtractTasksInputSchema.parse(input);
         const result = await llmRouter.generateText<ExtractTasksOutput>('extract', extractTasksUserPrompt(validated.text), {
             schema: ExtractTasksOutputSchema,
@@ -197,6 +204,7 @@ export class NlpAgent implements Agent<NlpRequest, NlpResponse> {
             traceId,
             temperature: 0.3,
             maxTokens: 1024,
+            signal,
         });
         if (!result.data) throw new ScasiError({ code: 'NLP_PARSE_ERROR', message: 'No structured data returned for extractTasks' });
         return result.data;
@@ -206,7 +214,7 @@ export class NlpAgent implements Agent<NlpRequest, NlpResponse> {
     // extractEntities
     // -----------------------------------------------------------------------
 
-    async extractEntities(input: ExtractEntitiesInput, traceId?: string): Promise<ExtractEntitiesOutput> {
+    async extractEntities(input: ExtractEntitiesInput, traceId?: string, signal?: AbortSignal): Promise<ExtractEntitiesOutput> {
         const validated = ExtractEntitiesInputSchema.parse(input);
         const result = await llmRouter.generateText<ExtractEntitiesOutput>('extract', extractEntitiesUserPrompt(validated.text), {
             schema: ExtractEntitiesOutputSchema,
@@ -214,6 +222,7 @@ export class NlpAgent implements Agent<NlpRequest, NlpResponse> {
             traceId,
             temperature: 0.3,
             maxTokens: 1024,
+            signal,
         });
         if (!result.data) throw new ScasiError({ code: 'NLP_PARSE_ERROR', message: 'No structured data returned for extractEntities' });
         return result.data;
@@ -224,7 +233,7 @@ export class NlpAgent implements Agent<NlpRequest, NlpResponse> {
     // -----------------------------------------------------------------------
 
     // Uses 'summarize' task type — no dedicated 'explain' policy; Gemini Flash handles it well.
-    async explain(input: ExplainInput, traceId?: string): Promise<ExplainOutput> {
+    async explain(input: ExplainInput, traceId?: string, signal?: AbortSignal): Promise<ExplainOutput> {
         const validated = ExplainInputSchema.parse(input);
         const result = await llmRouter.generateText<ExplainOutput>('summarize', explainUserPrompt(validated), {
             schema: ExplainOutputSchema,
@@ -232,6 +241,7 @@ export class NlpAgent implements Agent<NlpRequest, NlpResponse> {
             traceId,
             temperature: 0.5,
             maxTokens: 512,
+            signal,
         });
         if (!result.data) throw new ScasiError({ code: 'NLP_PARSE_ERROR', message: 'No structured data returned for explain' });
         return result.data;

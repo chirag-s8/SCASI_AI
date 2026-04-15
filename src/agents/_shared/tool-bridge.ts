@@ -9,7 +9,7 @@ export interface ToolDefinition {
     name: string;
     description: string;
     parameters: Record<string, unknown>;
-    execute: (input: Record<string, unknown>, ctx: AgentContext) => Promise<unknown>;
+    execute: (input: Record<string, unknown>, ctx: AgentContext, signal?: AbortSignal) => Promise<unknown>;
 }
 
 function buildTools(): ToolDefinition[] {
@@ -25,7 +25,7 @@ function buildTools(): ToolDefinition[] {
                 },
                 required: ['query'],
             },
-            execute: async (input, ctx) => {
+            execute: async (input, ctx, signal) => {
                 const { ragAgent } = await import('../rag');
                 return ragAgent.query({
                     query: input.query as string,
@@ -35,7 +35,7 @@ function buildTools(): ToolDefinition[] {
                     similarityThreshold: 0.3,
                     contextBudgetTokens: 4000,
                     rerank: true,
-                }, ctx.traceId as string);
+                }, { traceId: ctx.traceId as string, signal });
             },
         },
         {
@@ -49,7 +49,7 @@ function buildTools(): ToolDefinition[] {
                 },
                 required: ['subject', 'snippet'],
             },
-            execute: async (input, ctx) => {
+            execute: async (input, ctx, signal) => {
                 const { nlpAgent } = await import('../nlp');
                 return nlpAgent.classify(
                     { subject: input.subject as string, snippet: input.snippet as string },
@@ -70,14 +70,14 @@ function buildTools(): ToolDefinition[] {
                 },
                 required: ['subject', 'snippet'],
             },
-            execute: async (input, ctx) => {
+            execute: async (input, ctx, signal) => {
                 const { nlpAgent } = await import('../nlp');
                 return nlpAgent.summarize({
                     subject: input.subject as string,
                     snippet: input.snippet as string,
                     from: input.from as string | undefined,
                     date: input.date as string | undefined,
-                }, ctx.traceId as string);
+                }, ctx.traceId as string, signal);
             },
         },
         {
@@ -92,13 +92,13 @@ function buildTools(): ToolDefinition[] {
                 },
                 required: ['subject', 'snippet'],
             },
-            execute: async (input, ctx) => {
+            execute: async (input, ctx, signal) => {
                 const { nlpAgent } = await import('../nlp');
                 return nlpAgent.draftReply({
                     subject: input.subject as string,
                     snippet: input.snippet as string,
                     tone: (input.tone as 'professional' | 'casual' | 'formal') ?? 'professional',
-                }, ctx.traceId as string);
+                }, ctx.traceId as string, signal);
             },
         },
         {
@@ -111,11 +111,12 @@ function buildTools(): ToolDefinition[] {
                 },
                 required: ['text'],
             },
-            execute: async (input, ctx) => {
+            execute: async (input, ctx, signal) => {
                 const { nlpAgent } = await import('../nlp');
                 return nlpAgent.extractTasks(
                     { text: input.text as string },
-                    ctx.traceId as string
+                    ctx.traceId as string,
+                    signal
                 );
             },
         },
@@ -129,11 +130,12 @@ function buildTools(): ToolDefinition[] {
                 },
                 required: ['text'],
             },
-            execute: async (input, ctx) => {
+            execute: async (input, ctx, signal) => {
                 const { nlpAgent } = await import('../nlp');
                 return nlpAgent.extractEntities(
                     { text: input.text as string },
-                    ctx.traceId as string
+                    ctx.traceId as string,
+                    signal
                 );
             },
         },

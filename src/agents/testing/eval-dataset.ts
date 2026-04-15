@@ -1,7 +1,7 @@
 /**
  * @file src/agents/testing/eval-dataset.ts
  * Curated evaluation dataset for the Scasi LLM-as-judge pipeline.
- * 12 sample emails covering all required categories.
+ * 15 sample emails covering all required categories.
  */
 
 import { z } from 'zod';
@@ -142,6 +142,36 @@ const RAW_DATASET = [
     expectedCategory: 'support',
     expectedSummaryKeywords: ['order #88234', 'not delivered', 'refund', 're-shipment'],
     expectedReplyTone: 'professional',
+  },
+  {
+    id: 'eval-013',
+    subject: 'SECURITY ALERT: Unusual sign-in detected on your account',
+    from: 'security@company.com',
+    body: 'We detected a sign-in to your account from an unrecognized device in São Paulo, Brazil at 3:42 AM UTC. If this was not you, please reset your password immediately and enable two-factor authentication. Your account has been temporarily restricted as a precaution.',
+    expectedPriority: 10,
+    expectedCategory: 'support',
+    expectedSummaryKeywords: ['sign-in', 'São Paulo', 'reset password', 'two-factor', 'restricted'],
+    expectedReplyTone: 'none',
+  },
+  {
+    id: 'eval-014',
+    subject: 'Fwd: Partnership Proposal – Review Needed by Wednesday',
+    from: 'director@company.com',
+    body: 'Forwarding this proposal from CloudScale Inc. for your review. They are offering a 3-year infrastructure partnership at $450K/year with a 15% discount for early commitment. I need your technical assessment and recommendation by Wednesday EOD. Key concerns: data residency compliance and SLA guarantees.',
+    expectedPriority: 8,
+    expectedCategory: 'meeting_request',
+    expectedSummaryKeywords: ['CloudScale', '$450K', '3-year', 'Wednesday', 'data residency', 'SLA'],
+    expectedReplyTone: 'professional',
+  },
+  {
+    id: 'eval-015',
+    subject: 'Your Annual Pro Plan Renewal – $299/year',
+    from: 'billing@saasapp.com',
+    body: 'Your Pro Plan subscription will automatically renew on January 15th for $299/year. Your team of 8 members will continue to have access to all premium features. If you wish to cancel or change your plan, please do so before January 12th to avoid being charged. View your billing settings at https://app.saasapp.com/billing.',
+    expectedPriority: 6,
+    expectedCategory: 'billing',
+    expectedSummaryKeywords: ['Pro Plan', '$299', 'January 15th', '8 members', 'January 12th'],
+    expectedReplyTone: 'none',
   },
 ];
 

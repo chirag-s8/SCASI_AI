@@ -7,7 +7,7 @@ type CalendarEvent = {
   title: string;
   date: Date;
   time?: string;
-  type: "deadline" | "meeting" | "appointment" | "reminder";
+  type: "deadline" | "meeting" | "appointment" | "reminder" | "emergency" | "task";
   description?: string;
 };
 

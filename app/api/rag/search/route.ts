@@ -54,7 +54,7 @@ export async function POST(req: Request) {
                 contextBudgetTokens: 4000,
                 rerank: true,
             },
-            traceId
+            { traceId, signal: req.signal }
         );
 
         return NextResponse.json({
@@ -63,6 +63,10 @@ export async function POST(req: Request) {
             totalChunksSearched: result.totalChunksSearched,
         });
     } catch (err: unknown) {
+        // AbortError = client disconnected — not a server error, avoid noisy logging
+        if (err instanceof Error && err.name === 'AbortError') {
+            return new Response(null, { status: 499 }); // Client Closed Request (non-standard but widely understood)
+        }
         const message = err instanceof Error ? err.message : 'RAG search failed';
         console.error('[/api/rag/search]', message);
         return NextResponse.json({ error: message }, { status: 500 });

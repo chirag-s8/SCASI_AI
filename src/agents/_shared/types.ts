@@ -150,6 +150,11 @@ export interface AgentContext {
     /** Which agent is currently executing (set by the orchestrator) */
     agentName: AgentName;
 
+    /** AbortSignal from the incoming HTTP request — allows cancellation on client disconnect.
+     *  NOT serializable — must never be persisted to DB or included in JSON responses.
+     */
+    signal?: AbortSignal;
+
     /** Arbitrary metadata bag for cross-agent data sharing */
     metadata?: Record<string, unknown>;
 }
@@ -161,6 +166,8 @@ export const AgentContextSchema = z.object({
     sessionId: z.string().min(1).transform(SessionId).optional(),
     requestedAt: z.string().datetime(),
     agentName: AgentName,
+    // Note: `signal` is deliberately excluded from the Zod schema because
+    // AbortSignal is not serializable and cannot be validated at runtime.
     metadata: z.record(z.string(), z.unknown()).optional(),
 });
 
