@@ -11,3 +11,6 @@
  */
 
 export * from './types';
+export * from './promptVersions';
+export { EvalAgent } from './evalAgent';
+export type { EvalRun, EvalResult, EvalScore, EvalCategory } from './evalAgent';

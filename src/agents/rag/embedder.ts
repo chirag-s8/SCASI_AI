@@ -17,7 +17,8 @@ const BATCH_SIZE = 100;
  */
 export async function embedTexts(
     texts: string[],
-    traceId?: string
+    traceId?: string,
+    signal?: AbortSignal
 ): Promise<(number[] | null)[]> {
     if (texts.length === 0) return [];
 
@@ -40,7 +41,7 @@ export async function embedTexts(
             const batchIndices = uncachedIndices.slice(batchStart, batchStart + BATCH_SIZE);
             const batchTexts = batchIndices.map(i => texts[i]);
 
-            const embedResult = await llmRouter.embed(batchTexts, { traceId });
+            const embedResult = await llmRouter.embed(batchTexts, { traceId, signal });
 
             for (let j = 0; j < batchIndices.length; j++) {
                 const originalIdx = batchIndices[j];
@@ -50,6 +51,9 @@ export async function embedTexts(
             }
         }
     } catch (err: unknown) {
+        // Rethrow abort errors — callers that pass signal expect cancellation, not silent degradation
+        if (err instanceof Error && err.name === 'AbortError') throw err;
+        if (signal?.aborted) throw err;
         const msg = err instanceof Error ? err.message : String(err);
         console.warn(`[embedder] Embedding unavailable, skipping ${uncachedIndices.length} texts: ${msg}`);
     }
@@ -63,12 +67,13 @@ export async function embedTexts(
  */
 export async function embedSingleText(
     text: string,
-    traceId?: string
+    traceId?: string,
+    signal?: AbortSignal
 ): Promise<number[]> {
     const cached = await getCachedEmbedding(text);
     if (cached) return cached;
 
-    const result = await llmRouter.embed([text], { traceId });
+    const result = await llmRouter.embed([text], { traceId, signal });
     const embedding = result.embeddings[0];
     await setCachedEmbedding(text, embedding);
     return embedding;

@@ -80,7 +80,8 @@ interface ClassifiedEmail {
 
 export async function handleForMe(
     ctx: AgentContext,
-    req: OrchestratorRequest
+    req: OrchestratorRequest,
+    signal?: AbortSignal
 ): Promise<{ answer: string; trace: AgentResult[] }> {
     const trace: AgentResult[] = [];
     const traceId = ctx.traceId as string;
@@ -107,7 +108,8 @@ export async function handleForMe(
     const summarizeStart = Date.now();
     const summary = await nlpAgent.summarize(
         { subject: email.subject, snippet: email.snippet, from: email.from },
-        traceId
+        traceId,
+        signal
     );
     trace.push({
         agentName: 'nlp.summarize',
@@ -120,7 +122,8 @@ export async function handleForMe(
     const tasksStart = Date.now();
     const tasks = await nlpAgent.extractTasks(
         { text: email.body || email.snippet },
-        traceId
+        traceId,
+        signal
     );
     trace.push({
         agentName: 'nlp.extractTasks',
@@ -133,7 +136,8 @@ export async function handleForMe(
     const replyStart = Date.now();
     const reply = await nlpAgent.draftReply(
         { subject: email.subject, snippet: email.snippet, tone: 'professional', from: email.from },
-        traceId
+        traceId,
+        signal
     );
     trace.push({
         agentName: 'nlp.draftReply',
@@ -190,7 +194,8 @@ export async function handleForMe(
 
 export async function sortInbox(
     ctx: AgentContext,
-    _req: OrchestratorRequest
+    _req: OrchestratorRequest,
+    signal?: AbortSignal
 ): Promise<{ answer: string; trace: AgentResult[] }> {
     const trace: AgentResult[] = [];
     const traceId = ctx.traceId as string;
@@ -206,7 +211,7 @@ export async function sortInbox(
         similarityThreshold: 0.1,
         contextBudgetTokens: 8000,
         rerank: false,
-    }, traceId);
+    }, { traceId, signal });
     trace.push({
         agentName: 'rag.query',
         completedAt: new Date().toISOString(),
@@ -238,6 +243,7 @@ export async function sortInbox(
             const cls = await nlpAgent.classify(
                 { subject: text.slice(0, 200), snippet: text },
                 traceId
+                // classify() is rule-based (no API call) — signal not forwarded
             );
             return {
                 emailId,
@@ -286,7 +292,8 @@ export async function sortInbox(
 export async function replyTo(
     ctx: AgentContext,
     req: OrchestratorRequest,
-    target: string
+    target: string,
+    signal?: AbortSignal
 ): Promise<{ answer: string; trace: AgentResult[] }> {
     const trace: AgentResult[] = [];
     const traceId = ctx.traceId as string;
@@ -302,7 +309,7 @@ export async function replyTo(
         similarityThreshold: 0.2,
         contextBudgetTokens: 4000,
         rerank: true,
-    }, traceId);
+    }, { traceId, signal });
     trace.push({
         agentName: 'rag.query',
         completedAt: new Date().toISOString(),
@@ -323,7 +330,7 @@ export async function replyTo(
         subject: `Thread with ${target}`,
         snippet: searchResult.contextBlock.slice(0, 8000),
         from: target,
-    }, traceId);
+    }, traceId, signal);
     trace.push({
         agentName: 'nlp.summarize',
         completedAt: new Date().toISOString(),
@@ -337,7 +344,7 @@ export async function replyTo(
         subject: `Re: ${summary.summary.slice(0, 100)}`,
         snippet: searchResult.contextBlock.slice(0, 6000),
         tone: 'professional',
-    }, traceId);
+    }, traceId, signal);
     trace.push({
         agentName: 'nlp.draftReply',
         completedAt: new Date().toISOString(),

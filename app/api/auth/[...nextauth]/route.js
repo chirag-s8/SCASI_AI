@@ -1,6 +1,7 @@
 import NextAuth from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
 import AzureADProvider from "next-auth/providers/azure-ad";
+import { resolveEmailVerified } from "@/lib/resolveEmailVerified";
 
 async function refreshGoogleAccessToken(token) {
   try {
@@ -33,6 +34,7 @@ async function refreshGoogleAccessToken(token) {
     return { ...token, error: "RefreshAccessTokenError" };
   }
 }
+
 
 export const authOptions = {
   providers: [
@@ -85,7 +87,7 @@ export const authOptions = {
       return baseUrl;
     },
 
-    async jwt({ token, account }) {
+    async jwt({ token, account, profile }) {
       if (account) {
         token.accessToken = account.access_token;
         token.refreshToken = account.refresh_token;
@@ -93,6 +95,10 @@ export const authOptions = {
           ? account.expires_at * 1000
           : Date.now() + 3600 * 1000;
         token.provider = account.provider;
+        // Store email_verified from OAuth provider claims.
+        // Provider-specific verification logic is centralized in resolveEmailVerified()
+        // to avoid fragile inline checks scattered across the codebase.
+        token.emailVerified = resolveEmailVerified(account.provider, profile);
         return token;
       }
 
@@ -109,6 +115,7 @@ export const authOptions = {
       session.refreshToken = token.refreshToken;
       session.provider = token.provider;
       session.error = token.error;
+      session.emailVerified = token.emailVerified ?? false;
 
       return session;
     },

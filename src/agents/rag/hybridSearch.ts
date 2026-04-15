@@ -8,6 +8,7 @@ import { getServiceRoleClient } from '../_shared/supabase';
 import type { ScoredChunk, ChunkType } from './types';
 import { embedSingleText } from './embedder';
 import { getCachedSearchResults, setCachedSearchResults, computeSearchHash } from './cache';
+import { createAbortError } from '../../llm/router';
 
 const EMBED_DIM = 768;
 
@@ -17,6 +18,7 @@ export interface HybridSearchOptions {
     topK: number;
     hybridWeight: number;
     traceId?: string;
+    signal?: AbortSignal;
 }
 
 export async function hybridSearch(options: HybridSearchOptions): Promise<ScoredChunk[]> {
@@ -29,14 +31,25 @@ export async function hybridSearch(options: HybridSearchOptions): Promise<Scored
 
     let queryEmbedding: number[];
     try {
-        queryEmbedding = await embedSingleText(query, traceId);
-    } catch {
+        queryEmbedding = await embedSingleText(query, traceId, options.signal);
+    } catch (err: unknown) {
+        // Rethrow abort errors — they're intentional cancellation, not provider failures.
+        // Degrading to FTS-only on abort would silently produce low-quality results
+        // and waste the work already done (the caller expects cancellation, not degradation).
+        if (err instanceof Error && err.name === 'AbortError') throw err;
+        if (options.signal?.aborted) throw err; // signal already aborted but error name may differ
         queryEmbedding = new Array(EMBED_DIM).fill(0);
         hybridWeight = 0;
-        console.warn('[hybridSearch] Embedding unavailable, falling back to FTS-only search');
+        console.warn('[hybridSearch] Embedding unavailable, falling back to FTS-only search:',
+            err instanceof Error ? err.message : String(err));
     }
 
     const db = getServiceRoleClient();
+
+    // AbortSignal support: check before the potentially slow DB query
+    if (options.signal?.aborted) {
+        throw createAbortError('Aborted before DB query');
+    }
 
     const { data, error } = await db.rpc('hybrid_search_chunks', {
         p_user_id: userId,
@@ -45,6 +58,10 @@ export async function hybridSearch(options: HybridSearchOptions): Promise<Scored
         p_match_count: topK * 2,
         p_vector_weight: hybridWeight,
     });
+
+    if (options.signal?.aborted) {
+        throw createAbortError('Aborted after DB query');
+    }
 
     if (error) throw new Error(`Hybrid search failed: ${error.message}`);
 

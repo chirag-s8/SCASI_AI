@@ -33,6 +33,7 @@ export interface GenerationOptions<T = unknown> {
     traceId?: string;
     cacheKey?: string;
     retries?: number; // for auto-repair loop
+    signal?: AbortSignal; // Allows cancellation of in-flight HTTP requests
 }
 
 export interface GenerationResult<T = string> {
@@ -48,6 +49,7 @@ export interface GenerationResult<T = string> {
 
 export interface EmbedOptions {
     traceId?: string;
+    signal?: AbortSignal; // Allows cancellation of in-flight embedding requests
 }
 
 export interface EmbedResult {

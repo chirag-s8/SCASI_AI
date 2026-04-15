@@ -51,6 +51,7 @@ export async function POST(req: Request) {
         sessionId: sessionId ? SessionId(sessionId) : undefined,
         requestedAt: new Date().toISOString(),
         agentName: 'orchestrator',
+        signal: req.signal,
         metadata: accessToken ? { accessToken } : undefined,
     };
 
@@ -69,13 +70,18 @@ export async function POST(req: Request) {
                     controller.enqueue(encoder.encode(sse));
                 }
             } catch (err: unknown) {
-                const errorEvent = {
-                    type: 'error',
-                    code: 'STREAM_ERROR',
-                    message: err instanceof Error ? err.message : 'Unknown error',
-                };
-                const sse = `event: error\ndata: ${JSON.stringify(errorEvent)}\n\n`;
-                controller.enqueue(encoder.encode(sse));
+                // AbortError = client disconnected — close stream cleanly, no error event
+                if (err instanceof Error && err.name === 'AbortError') {
+                    // Stream ends naturally via finally → controller.close()
+                } else {
+                    const errorEvent = {
+                        type: 'error',
+                        code: 'STREAM_ERROR',
+                        message: err instanceof Error ? err.message : 'Unknown error',
+                    };
+                    const sse = `event: error\ndata: ${JSON.stringify(errorEvent)}\n\n`;
+                    controller.enqueue(encoder.encode(sse));
+                }
             } finally {
                 controller.close();
             }

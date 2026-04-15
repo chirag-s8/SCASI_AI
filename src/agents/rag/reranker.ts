@@ -38,7 +38,8 @@ function buildRerankPrompt(query: string, chunks: ScoredChunk[]): string {
 export async function rerankChunks(
     query: string,
     chunks: ScoredChunk[],
-    traceId?: string
+    traceId?: string,
+    signal?: AbortSignal
 ): Promise<ScoredChunk[]> {
     if (chunks.length <= RERANK_THRESHOLD) {
         return chunks;
@@ -51,6 +52,7 @@ export async function rerankChunks(
             traceId,
             temperature: 0.1,
             maxTokens: 1024,
+            signal,
         });
 
         if (!result.data) return chunks;
