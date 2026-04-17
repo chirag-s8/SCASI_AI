@@ -1,9 +1,0 @@
-# Global owners — all PRs require review from at least one of these
-* @salonxix
-
-# Core agent/LLM logic — Avila reviews
-/src/agents/   @salonxix
-/src/llm/      @salonxix
-
-# CI/CD — anyone touching workflows needs owner approval
-/.github/      @salonxix
