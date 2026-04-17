@@ -384,6 +384,48 @@ export interface SendEmailResult {
     } | null;
 }
 
+// Schemas for compose intent extraction (mirrors /api/ai/compose)
+import { z } from 'zod';
+import { llmRouter } from '../../llm/router';
+
+const ComposeIntentSchema = z.object({
+    recipientName: z.string(),
+    ccNames: z.array(z.string()).catch([]),
+    subject: z.string(),
+    intent: z.string(),
+    tone: z.enum(['professional', 'casual', 'formal', 'friendly', 'firm', 'grateful']).default('professional'),
+    deadline: z.string().nullable().catch(null),
+});
+
+const DraftSchema = z.object({
+    subject: z.string(),
+    body: z.string(),
+});
+
+const COMPOSE_EXTRACT_SYSTEM = `You are an email composition assistant. Extract the recipient name, CC names, subject, intent, tone, and deadline from the user's natural language prompt.
+
+Return JSON:
+{
+  "recipientName": "first name or full name of the primary recipient",
+  "ccNames": ["name of person to CC"],
+  "subject": "a concise email subject line",
+  "intent": "what the email should say in 1-2 sentences",
+  "tone": "professional | casual | formal | friendly | firm | grateful",
+  "deadline": "deadline string if mentioned, or null"
+}
+
+CC detection: look for "keep X in CC", "CC X", "copy X", "also CC". ccNames is [] if none mentioned.`;
+
+const COMPOSE_DRAFT_SYSTEM = `You are an expert email writer. Write a complete, ready-to-send email body based on the given intent and tone.
+
+Rules:
+- Write ONLY the email body (no subject line, no metadata)
+- Start with an appropriate greeting using the recipient name
+- Keep it concise and on-point
+- End with an appropriate sign-off
+
+Return JSON: { "subject": "refined subject line", "body": "complete email body" }`;
+
 export async function sendEmail(
     ctx: AgentContext,
     req: OrchestratorRequest,
@@ -396,43 +438,64 @@ export async function sendEmail(
     const composeStart = Date.now();
 
     try {
-        // Call the compose AI endpoint to generate draft from natural language
-        const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000';
-        const res = await fetch(`${baseUrl}/api/ai/compose`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                prompt: userMessage,
-                senderName: 'User',
-            }),
+        // Step 1: Extract compose intent directly via LLM (no HTTP fetch — avoids auth issues)
+        const intentResult = await llmRouter.generateText('extract', userMessage, {
+            schema: ComposeIntentSchema,
+            systemPrompt: COMPOSE_EXTRACT_SYSTEM,
+            traceId,
+            temperature: 0.2,
+            maxTokens: 256,
             signal,
         });
 
-        if (!res.ok) {
-            throw new Error(`Compose API error: ${res.status}`);
+        if (!intentResult.data) {
+            throw new Error('Could not parse email intent from your request.');
         }
 
-        const data = await res.json();
+        const intent = intentResult.data;
+
+        // Step 2: Draft the email body directly via LLM
+        const draftPrompt = `Recipient: ${intent.recipientName}
+Subject: ${intent.subject}
+Intent: ${intent.intent}
+Tone: ${intent.tone}
+${intent.deadline ? `Deadline: ${intent.deadline}` : ''}
+
+Write the email body.`;
+
+        const draftResult = await llmRouter.generateText('reply', draftPrompt, {
+            schema: DraftSchema,
+            systemPrompt: COMPOSE_DRAFT_SYSTEM,
+            traceId,
+            temperature: 0.6,
+            maxTokens: 512,
+            signal,
+        });
+
+        if (!draftResult.data) {
+            throw new Error('Could not draft the email body.');
+        }
 
         trace.push({
             agentName: 'email.compose',
             completedAt: new Date().toISOString(),
             durationMs: Date.now() - composeStart,
-            output: { recipientName: data.recipientName, subject: data.subject },
+            output: { recipientName: intent.recipientName, subject: draftResult.data.subject },
         });
 
         const composeData = {
             prompt: userMessage,
-            recipientName: data.recipientName || '',
-            subject: data.subject || '',
-            body: data.body || '',
-            to: data.to || '',
-            cc: data.cc || '',
+            recipientName: intent.recipientName,
+            subject: draftResult.data.subject || intent.subject,
+            body: draftResult.data.body,
+            to: '',
+            cc: intent.ccNames?.join(', ') || '',
         };
 
-        const answer = `I've drafted an email to ${data.recipientName || 'the recipient'} with the subject "${data.subject || 'your message'}". Opening the compose window for you to review and send.`;
+        const answer = `I've drafted an email to ${intent.recipientName} with the subject "${composeData.subject}". Opening the compose window for you to review and send.`;
 
         return { answer, trace, composeData };
+
     } catch (err: unknown) {
         const errMsg = err instanceof Error ? err.message : String(err);
         trace.push({
@@ -443,7 +506,7 @@ export async function sendEmail(
         });
 
         return {
-            answer: `I wasn't able to draft that email. ${errMsg}. Please try using the Compose button directly.`,
+            answer: `I wasn't able to draft that email. Please try using the Compose button directly.`,
             trace,
             composeData: null,
         };
