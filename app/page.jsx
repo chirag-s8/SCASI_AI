@@ -1791,7 +1791,7 @@ export default function Home() {
             <>
           {/* ════ EMAIL LIST ════ */}
           <div style={{
-            display: selectedMail ? "none" : "flex", flex: 1, flexShrink: 0,
+            display: selectedMail ? "none" : "flex", flexGrow: 1, flexShrink: 0, flexBasis: "auto",
             borderRight: "1px solid #EDE9FE",
             flexDirection: "column",
             background: "#fff", overflow: "hidden",
