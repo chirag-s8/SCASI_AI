@@ -42,6 +42,13 @@ export class LLMRouter {
         return process.env[model.apiKeyEnv] || '';
     }
 
+    private isModelConfigured(model: ModelConfig): boolean {
+        if (model.provider === 'local') return true; // local never needs a key
+        if (model.apiKeyEnv === 'NONE') return true;
+        const key = process.env[model.apiKeyEnv] || '';
+        return !!(key && !key.startsWith('your_'));
+    }
+
     private getModelFromChain(task: LLMTaskType, attempt: number): ModelConfig {
         const policy = taskPolicies[task];
         if (attempt === 0) return policy.primary;
@@ -109,6 +116,13 @@ export class LLMRouter {
         let attempt = 0;
         while (attempt < (taskPolicies[task].fallbackChain.length + 1)) {
             const model = this.getModelFromChain(task, attempt);
+
+            // Skip models whose API key is not configured
+            if (!this.isModelConfigured(model)) {
+                console.warn(`[LLMRouter] Skipping ${model.id} — ${model.apiKeyEnv} not configured`);
+                attempt++;
+                continue;
+            }
 
             let repairAttempt = 0;
             const currentPrompt = prompt;
@@ -291,6 +305,12 @@ export class LLMRouter {
 
         for (let attempt = 0; attempt < modelChain.length; attempt++) {
             const model = modelChain[attempt];
+
+            // Skip models whose API key is not configured
+            if (!this.isModelConfigured(model)) {
+                console.warn(`[LLMRouter] streamText skipping ${model.id} — ${model.apiKeyEnv} not configured`);
+                continue;
+            }
             const startTime = Date.now();
             let collectedText = '';
             let lastError: unknown;

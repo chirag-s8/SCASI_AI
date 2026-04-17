@@ -30,37 +30,37 @@ export const taskPolicies: Record<LLMTaskType, TaskModelPolicy> = {
     route: {
         task: 'route',
         primary: MODELS.GROQ_LLAMA_3_1_8B,
-        fallbackChain: [MODELS.OR_NEMOTRON_30B, MODELS.OR_HUNTER_ALPHA],
+        fallbackChain: [MODELS.GROQ_LLAMA_3_3_70B, MODELS.OR_NEMOTRON_30B, MODELS.OR_HUNTER_ALPHA],
     },
     classify: {
         task: 'classify',
         primary: MODELS.GROQ_LLAMA_3_1_8B,
-        fallbackChain: [MODELS.OR_NEMOTRON_30B, MODELS.OR_HUNTER_ALPHA],
+        fallbackChain: [MODELS.GROQ_LLAMA_3_3_70B, MODELS.OR_NEMOTRON_30B, MODELS.OR_HUNTER_ALPHA],
     },
     extract: {
         task: 'extract',
         primary: MODELS.GROQ_LLAMA_3_3_70B,
-        fallbackChain: [MODELS.OR_GPT_OSS_120B, MODELS.OR_HUNTER_ALPHA],
+        fallbackChain: [MODELS.GROQ_LLAMA_3_1_8B, MODELS.OR_GPT_OSS_120B, MODELS.OR_HUNTER_ALPHA],
     },
     summarize: {
         task: 'summarize',
         primary: MODELS.GROQ_LLAMA_3_3_70B,
-        fallbackChain: [MODELS.OR_GEMINI_FLASH, MODELS.OR_GPT_OSS_120B, MODELS.OR_HUNTER_ALPHA],
+        fallbackChain: [MODELS.GROQ_LLAMA_3_1_8B, MODELS.OR_GEMINI_FLASH, MODELS.OR_GPT_OSS_120B, MODELS.OR_HUNTER_ALPHA],
     },
     reply: {
         task: 'reply',
         primary: MODELS.GROQ_LLAMA_3_3_70B,
-        fallbackChain: [MODELS.OR_GPT_OSS_120B, MODELS.OR_HUNTER_ALPHA],
+        fallbackChain: [MODELS.GROQ_LLAMA_3_1_8B, MODELS.OR_GPT_OSS_120B, MODELS.OR_HUNTER_ALPHA],
     },
     rerank: {
         task: 'rerank',
-        primary: MODELS.OR_DEEPSEEK_V3,
-        fallbackChain: [MODELS.OR_QWEN_32B, MODELS.OR_HUNTER_ALPHA],
+        primary: MODELS.GROQ_LLAMA_3_3_70B,
+        fallbackChain: [MODELS.GROQ_LLAMA_3_1_8B, MODELS.OR_QWEN_32B, MODELS.OR_HUNTER_ALPHA],
     },
     judge: {
         task: 'judge',
-        primary: MODELS.OR_QWEN3_VL_235B,
-        fallbackChain: [MODELS.OR_GEMINI_PRO, MODELS.OR_HUNTER_ALPHA],
+        primary: MODELS.GROQ_LLAMA_3_3_70B,
+        fallbackChain: [MODELS.GROQ_LLAMA_3_1_8B, MODELS.OR_QWEN3_VL_235B, MODELS.OR_HUNTER_ALPHA],
     },
     embed: {
         task: 'embed',
