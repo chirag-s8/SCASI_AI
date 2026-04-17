@@ -46,6 +46,9 @@ next-env.d.ts
 # Generated artifacts — never commit these
 *.diff
 test_output.txt
+SCASI_AI_Documentation.docx
+generate_doc.py
+nul
 
 # IDE & tool configs — developer-specific
 .vscode/
