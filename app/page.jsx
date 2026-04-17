@@ -32,6 +32,10 @@ import Sidebar from "@/components/inbox/Sidebar";
 import TopNavBar from "@/components/inbox/TopNavBar";
 import { useInboxStore, hydratePersistedState } from "@/lib/inboxStore";
 import { useShallow } from "zustand/react/shallow";
+import { useFetchEmails } from "@/lib/hooks/useFetchEmails";
+import { useTriage } from "@/lib/hooks/useTriage";
+import { useHandleForMe } from "@/lib/hooks/useHandleForMe";
+import { useReplyFlow } from "@/lib/hooks/useReplyFlow";
 import MailLoadingScreen, { EmptyStateEnvelope } from "@/components/inbox/MailLoadingScreen";
 import "@/components/inbox/inbox.css";
 const ScassiHero3D = dynamic(
@@ -90,10 +94,11 @@ export default function Home() {
     starredIds, toggleStar, snoozedIds, snoozeMail, doneIds, markDone,
     // AI features
     aiSummary, setAiSummary, aiReason, setAiReason,
-    loadingAI, setLoadingAI,
+    loadingSummary, loadingExplanation,
     aiReply, setAiReply, loadingReply, setLoadingReply,
     editableReply, setEditableReply,
     sendingReply, setSendingReply, replySent, setReplySent,
+    sendError, setSendError,
     aiPriorityMap, setAIPriorityMap, updateAIPriority,
     // Handle-For-Me
     handleForMeResult, setHandleForMeResult,
@@ -156,8 +161,8 @@ export default function Home() {
       setAiSummary: state.setAiSummary,
       aiReason: state.aiReason,
       setAiReason: state.setAiReason,
-      loadingAI: state.loadingAI,
-      setLoadingAI: state.setLoadingAI,
+      loadingSummary: state.loadingSummary,
+      loadingExplanation: state.loadingExplanation,
       aiReply: state.aiReply,
       setAiReply: state.setAiReply,
       loadingReply: state.loadingReply,
@@ -168,6 +173,8 @@ export default function Home() {
       setSendingReply: state.setSendingReply,
       replySent: state.replySent,
       setReplySent: state.setReplySent,
+      sendError: state.sendError,
+      setSendError: state.setSendError,
       aiPriorityMap: state.aiPriorityMap,
       setAIPriorityMap: state.setAIPriorityMap,
       updateAIPriority: state.updateAIPriority,
@@ -250,9 +257,13 @@ export default function Home() {
 
 
   // ── Refs ──
-  const ragIndexedRef = useRef(new Set());
-  const abortRef = useRef(null);
-  const requestSeqRef = useRef(0);
+  // (requestSeqRef, ragIndexedRef, abortRef moved into useFetchEmails hook)
+
+  // ── Store-backed hooks (replace inline functions) ──
+  const { fetchEmails, refreshInbox, loadMore: loadMoreFromHook } = useFetchEmails();
+  const { runInboxTriage, resetTriage } = useTriage();
+  const { runHandleForMe, resetHandleForMe } = useHandleForMe();
+  const { generateReply, sendDraftReply, generateSummary, generateExplanation, resetReplyFlow } = useReplyFlow();
 
   // ── View transition handlers ──
   function handleLoadingDone() {
@@ -267,7 +278,7 @@ export default function Home() {
 
   async function askGemini() {
     if (!selectedMail) {
-      alert("Select an email first");
+      setSendError("Select an email first to use Gemini");
       return;
     }
     setLoadingGemini(true);
@@ -303,18 +314,14 @@ export default function Home() {
 
   function deleteSelectedMail() {
     if (!selectedMail) {
-      alert("❌ Please select an email first");
+      setSendError("Please select an email first");
       return;
     }
-    alert("🗑 Delete feature will be connected to Gmail API next");
+    setSendError("Delete isn't connected to Gmail API yet — coming soon!");
   }
 
   const loadMoreEmails = () => {
-    // Abort any in-flight folder fetch, then create a new controller for pagination
-    abortRef.current?.abort();
-    const controller = new AbortController();
-    abortRef.current = controller;
-    fetchEmails(activeFolder, nextPageToken, controller.signal);
+    loadMoreFromHook(activeFolder, nextPageToken);
   };
 
   // ✅ FIXED: Combined function that fetches email AND generates AI
@@ -333,233 +340,22 @@ export default function Home() {
     setUrgency(getUrgencyLevel(detected));
   };
 
-  async function runHandleForMe(mail) {
-    if (!mail) return;
-    setLoadingHandleForMe(true);
-    setHandleForMeResult("");
-    setReplySent(false);
-    try {
-      const res = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userMessage: "Handle this email for me",
-          emailContext: {
-            gmailId: mail.id || "",
-            subject: mail.subject || "",
-            snippet: (mail.snippet || "").slice(0, 500),
-            from: mail.from || "",
-            body: (mail.body || mail.snippet || "").slice(0, 8000),
-          },
-        }),
-      });
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        setHandleForMeResult("❌ " + (errData.error || "Failed to process email. Please try again."));
-        setLoadingHandleForMe(false);
-        return;
-      }
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = "";
-      let collected = "";
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-        let boundary = buffer.indexOf("\n\n");
-        while (boundary !== -1) {
-          const chunk = buffer.slice(0, boundary);
-          buffer = buffer.slice(boundary + 2);
-          boundary = buffer.indexOf("\n\n");
-          const dataLine = chunk.split("\n").find(l => l.startsWith("data: "));
-          if (dataLine) {
-            try {
-              const evt = JSON.parse(dataLine.slice(6));
-              if (evt.type === "token") {
-                collected += evt.text;
-                setHandleForMeResult(collected);
-              } else if (evt.type === "error") {
-                collected += "\n❌ " + evt.message;
-                setHandleForMeResult(collected);
-              }
-            } catch { /* skip malformed SSE */ }
-          }
-        }
-      }
-      if (!collected) {
-        setHandleForMeResult("No response generated. Please try again.");
-      } else {
-        // Parse structured fields using the extracted utility
-        const parsed = parseHandleForMeOutput(collected);
-        setHfmData(parsed.hfmData);
-        if (parsed.aiSummary) setAiSummary(parsed.aiSummary);
-        if (parsed.aiReason) setAiReason(parsed.aiReason);
-        setHandleForMeResult(parsed.draftReply || collected);
-      }
-    } catch (err) {
-      console.error("Handle For Me error:", err);
-      setHandleForMeResult("❌ Error: " + (err instanceof Error ? err.message : "Network error"));
-    }
-    setLoadingHandleForMe(false);
+  // runHandleForMe is now provided by useHandleForMe hook with AbortController + race protection
+
+  // runInboxTriage is now provided by useTriage hook with AbortController + race protection
+
+  // sendDraftReply is now provided by useReplyFlow hook (uses sendError state instead of alert())
+
+  // sendReply now delegates to useReplyFlow hook (no alert())
+  async function sendReply(body) {
+    if (!selectedMail) { setSendError("Select email first"); return; }
+    const sent = await sendDraftReply(selectedMail, body);
+    if (sent) setReplySent(true);
   }
 
-  async function runInboxTriage() {
-    setTriageLoading(true);
-    setTriageResultBody(null);
-    setTriageStep(1);
-    try {
-      if (filteredEmails.length === 0) {
-        setTriageResultBody({ kind: "text", text: "inbox_zero" });
-        setTriageLoading(false);
-        setTriageStep(0);
-        return;
-      }
-      const emailsTarget = filteredEmails.slice(0, 15);
-      const combinedSnippets = emailsTarget.map((m, i) =>
-        `Email ${i + 1}:\nFrom: ${m.from || "Unknown"}\nSubject: ${m.subject}\nSnippet: ${m.snippet}`
-      ).join("\n\n---\n\n");
-      setTriageStep(2);
-      const res = await fetch("/api/ai/triage", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ emails: combinedSnippets.slice(0, 12000) }),
-      });
-      if (!res.ok) throw new Error(`Triage API error: ${res.status}`);
-      setTriageStep(3);
-      const data = await res.json();
-      if (data.error) {
-        setTriageResultBody({ kind: "text", text: "❌ " + data.error });
-      } else if (data.raw) {
-        setTriageResultBody({ kind: "text", text: data.raw });
-      } else if (data.stats && data.items) {
-        setTriageResultBody({ kind: "stats", stats: data.stats, items: data.items });
-      } else {
-        setTriageResultBody({ kind: "text", text: "❌ Unexpected response from triage service." });
-      }
-    } catch (e) {
-      console.error('[triage] Client error:', e);
-      setTriageResultBody({ kind: "text", text: "❌ Could not connect to the triage service. Check your connection and try again." });
-    }
-    setTriageStep(0);
-    setTriageLoading(false);
-  }
+  // generateReply is now provided by useReplyFlow hook with AbortController + race protection
 
-  async function sendDraftReply() {
-    if (!selectedMail) return;
-    setSendingReply(true);
-    try {
-      const recipient = extractEmail(selectedMail.from);
-      if (!recipient) { alert("❌ Cannot reply: No valid recipient email found"); setSendingReply(false); return; }
-      const res = await fetch("/api/gmail/reply", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          to: recipient,
-          subject: selectedMail.subject,
-          body: handleForMeResult,
-          threadId: selectedMail.threadId,
-          originalMessageId: selectedMail.messageId,
-        }),
-      });
-      if (!res.ok) { alert(`❌ Reply failed: ${res.status}`); setSendingReply(false); return; }
-      const data = await res.json();
-      if (data.success) {
-        setReplySent(true);
-      } else {
-        alert("❌ Error: " + data.error);
-      }
-    } catch (err) {
-      alert("❌ Failed to send reply: " + (err instanceof Error ? err.message : "Network error"));
-    }
-    setSendingReply(false);
-  }
-
-  async function sendReply(body) { // returns true on success
-    if (!selectedMail) return alert("Select email first");
-    const recipient = extractEmail(selectedMail.from);
-    if (!recipient) { alert("❌ Cannot reply: No valid recipient email found"); return; }
-    setSendingReply(true);
-    try {
-      const res = await fetch("/api/gmail/reply", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ to: recipient, subject: selectedMail.subject, body, threadId: selectedMail.threadId, originalMessageId: selectedMail.messageId }),
-      });
-      if (!res.ok) { alert(`❌ Reply failed: ${res.status}`); setSendingReply(false); return; }
-      const data = await res.json();
-      alert(data.success ? "✅ Reply Sent Successfully!" : "❌ Error: " + data.error);
-    } catch (err) {
-      alert("❌ Failed to send reply: " + (err instanceof Error ? err.message : "Network error"));
-    }
-    setSendingReply(false);
-  }
-
-  async function generateReply() {
-    if (!selectedMail) {
-      alert("Please select an email first");
-      return;
-    }
-    setLoadingReply(true);
-    setAiReply("");
-    try {
-      const res = await fetch("/api/ai/reply", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          subject: selectedMail.subject,
-          snippet: selectedMail.snippet || selectedMail.body || "",
-        }),
-      });
-      if (!res.ok) throw new Error(`Reply API error: ${res.status}`);
-      const data = await res.json();
-      if (data.error) {
-        console.error("❌ API Error:", data.error);
-        alert("Error: " + data.error);
-        setLoadingReply(false);
-        return;
-      }
-      setAiReply(data.reply);
-      setEditableReply(data.reply);
-    } catch (error) {
-      console.error("❌ Fetch error:", error);
-      alert("Failed to generate reply. Check console for details.");
-    }
-    setLoadingReply(false);
-  }
-
-  async function generateSummary(mail) {
-    setLoadingAI(true);
-    try {
-      const emailContent = cleanEmailBody(mail.body || mail.snippet || "");
-      if (!emailContent) {
-        setAiSummary("⚠️ No email content available.");
-        setLoadingAI(false);
-        return;
-      }
-      const res = await fetch("/api/ai/summarize", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          subject: mail.subject,
-          snippet: emailContent.slice(0, 9500),
-          from: mail.from,
-          date: mail.date,
-        }),
-      });
-      if (!res.ok) throw new Error(`Summary API error: ${res.status}`);
-      const data = await res.json();
-      if (data.error) {
-        setAiSummary("❌ " + data.error);
-      } else {
-        setAiSummary(data.summary || "No summary generated.");
-      }
-    } catch (err) {
-      console.error("Summary error:", err);
-      setAiSummary("❌ Failed to generate summary: " + (err instanceof Error ? err.message : "Network error"));
-    }
-    setLoadingAI(false);
-  }
+  // generateSummary is now provided by useReplyFlow hook with AbortController + race protection
 
   async function generateAIPriorityForMail(mail) {
     if (aiPriorityMap[mail.id]) return;
@@ -582,144 +378,17 @@ export default function Home() {
     }
   }
 
-  async function generateExplanation(mail) {
-    setLoadingAI(true);
-    try {
-      const res = await fetch("/api/ai/explain", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          subject: mail.subject || "",
-          snippet: (mail.snippet || mail.body || "").slice(0, 9500),
-          from: mail.from,
-          date: mail.date,
-        }),
-      });
-      if (!res.ok) throw new Error(`Explain API error: ${res.status}`);
-      const data = await res.json();
-      if (data.error) {
-        setAiReason("❌ " + data.error);
-      } else {
-        setAiReason(data.explanation || "No explanation generated.");
-      }
-    } catch (err) {
-      console.error("Explanation error:", err);
-      setAiReason("❌ Failed to generate explanation: " + (err instanceof Error ? err.message : "Network error"));
-    }
-    setLoadingAI(false);
-  }
+  // generateExplanation is now provided by useReplyFlow hook with AbortController + race protection
 
-  // ✅ FIX 4: Load emails when session is available
-  const fetchEmails = async (folder = activeFolder, token = null, signal) => {
-    const seq = ++requestSeqRef.current;
-    setLoading(true);
-    setFetchError(null); // Clear any previous error for this new request
-    try {
-      const url = token ? `/api/gmail?pageToken=${token}&folder=${folder}` : `/api/gmail?folder=${folder}`;
-      const res = await fetch(url, { signal });
-      // Guard against non-JSON responses (e.g. Next.js dev compilation page on cold start).
-      // Check Content-Type FIRST — a non-OK HTML page (500/503) is also a warmup case.
-      const contentType = res.headers.get('content-type') || '';
-      if (!contentType.includes('application/json')) {
-        throw new Error('Server is warming up — please try again in a few seconds.');
-      }
-      if (!res.ok) throw new Error(`Gmail API error: ${res.status}`);
-      let data;
-      try {
-        data = await res.json();
-      } catch {
-        throw new Error('Server is warming up — please try again in a few seconds.');
-      }
-      // Stale-request guard: if a newer fetch started, discard this response
-      if (seq !== requestSeqRef.current) return;
-
-      const newMails = data.emails || [];
-      setEmails(prev => {
-        if (!token) return newMails;
-        const combined = [...prev, ...newMails];
-        return Array.from(new Map(combined.map(m => [m.id, m])).values());
-      });
-      setNextPageToken(data.nextPageToken || null);
-
-      // Notification tracking: only for initial inbox loads (not pagination, not other folders)
-      const lastSeen = lastSeenTime;
-      let count = 0;
-      let freshMails = [];
-      if (folder === "inbox" && !token && lastSeen) {
-        const lastTime = new Date(lastSeen).getTime();
-        freshMails = newMails.filter((mail) => new Date(mail.date).getTime() > lastTime);
-        count = freshMails.length;
-        setNewMails(freshMails);
-        setNewMailCount(count);
-      }
-
-      // Only update lastSeenTime for initial inbox loads, and only advance it forward
-      if (folder === "inbox" && !token && newMails.length > 0) {
-        const latestDate = newMails
-          .map(m => new Date(m.date).getTime())
-          .reduce((a, b) => Math.max(a, b), 0);
-        if (latestDate) {
-          const currentSeen = lastSeenTime ? new Date(lastSeenTime).getTime() : 0;
-          if (latestDate > currentSeen) {
-            setLastSeenTime(new Date(latestDate).toISOString());
-          }
-        }
-      }
-
-      // Sync to Supabase
-      if (newMails.length) {
-        fetch("/api/db/emails", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ emails: newMails }),
-        }).catch(err => console.error(err));
-      }
-
-      // RAG async index
-      const unindexed = newMails.filter(m => !ragIndexedRef.current.has(m.id));
-      if (unindexed.length) {
-        unindexed.forEach(m => ragIndexedRef.current.add(m.id));
-        fetch("/api/actions/index-emails", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ maxEmails: 50 }),
-        }).catch(e => console.error(e));
-      }
-    } catch (error) {
-      if (error.name === 'AbortError') { if (seq === requestSeqRef.current) setLoading(false); return; } // cancelled — don't update state
-      console.error("❌ Error loading emails:", error);
-      if (seq === requestSeqRef.current) setFetchError(error instanceof Error ? error.message : 'Failed to load emails');
-    }
-    if (seq === requestSeqRef.current) setLoading(false);
-  };
+  // fetchEmails, refreshInbox are now provided by useFetchEmails hook with AbortController + race protection + safeISODate
 
   useEffect(() => {
     if (!session) return;
-    // Only fetch for Gmail-backed folders; local-only views (starred/snoozed/done/calendar/team/analytics)
-    // are derived from the cached email list and don't need an API call.
     if (!GMAIL_FOLDERS.has(activeFolder)) return;
-
-    // Abort any in-flight fetch from a previous folder to prevent stale responses
-    abortRef.current?.abort();
-    const controller = new AbortController();
-    abortRef.current = controller;
-
     setEmails([]);
     setNextPageToken(null);
-    fetchEmails(activeFolder, null, controller.signal);
-
-    return () => controller.abort(); // cleanup on unmount or re-run
+    refreshInbox(activeFolder);
   }, [session, activeFolder]);
-
-  const refreshInbox = async () => {
-    if (!GMAIL_FOLDERS.has(activeFolder)) return; // Local-only views don't have a Gmail endpoint
-    abortRef.current?.abort();
-    const controller = new AbortController();
-    abortRef.current = controller;
-    setEmails([]);
-    setNextPageToken(null);
-    await fetchEmails(activeFolder, null, controller.signal);
-  };
 
   // ── Memoized values (MUST be above all early returns — Rules of Hooks) ──
   const filteredEmails = useMemo(() => emails.filter((mail) => {
@@ -796,7 +465,7 @@ export default function Home() {
       ══════════════════════════════════════════════════ */}
       <TopNavBar
         session={session}
-        onRefresh={refreshInbox}
+        onRefresh={() => refreshInbox(activeFolder)}
         onMailOpen={(id, mail) => { openMailAndGenerateAI(id, mail); generateAIPriorityForMail(mail); }}
       />
 
@@ -855,7 +524,7 @@ export default function Home() {
                    </div>
                    <button 
                      className="btn hover-glow" 
-                     onClick={() => { setTriageCollapsed(false); runInboxTriage(); }} 
+                     onClick={() => { setTriageCollapsed(false); runInboxTriage(filteredEmails); }} 
                      disabled={triageLoading} 
                      style={{ 
                        background: "linear-gradient(135deg, #6366F1, #8B5CF6)", 
@@ -1004,7 +673,7 @@ export default function Home() {
                      {/* Dismiss / Re-run */}
                      {!triageLoading && triageResultBody && (
                         <div style={{ marginTop: 16, display: "flex", justifyContent: "flex-end", gap: 8, borderTop: "1px solid rgba(255,255,255,0.05)", paddingTop: 16 }}>
-                           <button className="btn" onClick={runInboxTriage} style={{ background: "rgba(139,92,246,0.15)", color: "#A78BFA", border: "1px solid rgba(139,92,246,0.25)", fontSize: 12, padding: "6px 14px", borderRadius: 8 }}>
+                           <button className="btn" onClick={() => runInboxTriage(filteredEmails)} style={{ background: "rgba(139,92,246,0.15)", color: "#A78BFA", border: "1px solid rgba(139,92,246,0.25)", fontSize: 12, padding: "6px 14px", borderRadius: 8 }}>
                              ↻ Re-run
                            </button>
                            <button className="btn" onClick={() => setTriageCollapsed(true)} style={{ background: "rgba(255,255,255,0.05)", color: "#94A3B8", border: "1px solid rgba(255,255,255,0.1)", fontSize: 12, padding: "6px 14px", borderRadius: 8 }}>
@@ -1060,7 +729,7 @@ export default function Home() {
                     ⚠️ {fetchError}
                   </div>
                   <button
-                    onClick={refreshInbox}
+                    onClick={() => refreshInbox(activeFolder)}
                     style={{
                       padding: "8px 20px", borderRadius: 8, border: "1px solid #FCA5A5",
                       background: "#fff", color: "#DC2626", fontWeight: 700, fontSize: 12,
@@ -1381,7 +1050,10 @@ export default function Home() {
                    </div>
                    <div style={{ width: 1, height: 24, background: "#334155", margin: "0 4px" }} />
                    
-                   <button className="btn" onClick={() => runHandleForMe(selectedMail)} disabled={loadingHandleForMe} style={{ background: "linear-gradient(135deg, #A855F7, #7C3AED)", color: "#fff", border: "none", fontWeight: 700 }}>
+                   <button className="btn" onClick={() => runHandleForMe(selectedMail, {
+                      onSummary: (s) => setAiSummary(s),
+                      onReason: (r) => setAiReason(r),
+                    })} disabled={loadingHandleForMe} style={{ background: "linear-gradient(135deg, #A855F7, #7C3AED)", color: "#fff", border: "none", fontWeight: 700 }}>
                      <Ico.Zap /> {loadingHandleForMe ? "Auto-Handling..." : "Auto-Handle"}
                    </button>
                    <button className="btn" onClick={() => generateSummary(selectedMail)} style={{ background: "#1E293B", color: "#F8FAFC", border: "1px solid #334155", fontWeight: 600 }}>
@@ -1394,6 +1066,21 @@ export default function Home() {
                      ✍️ Smart Reply
                    </button>
                 </div>
+
+                {/* ── SEND ERROR BANNER ── */}
+                {sendError && (
+                  <div style={{
+                    background: "#FEF2F2", border: "1px solid #FCA5A5", borderRadius: 9,
+                    padding: "10px 14px", marginBottom: 10,
+                    display: "flex", alignItems: "center", gap: 10, justifyContent: "space-between",
+                  }}>
+                    <div style={{ fontSize: 12, color: "#DC2626", fontWeight: 600 }}>⚠️ {sendError}</div>
+                    <button onClick={() => setSendError(null)} style={{
+                      fontSize: 10, color: "#DC2626", background: "none", border: "none",
+                      cursor: "pointer", fontWeight: 700,
+                    }}>✕</button>
+                  </div>
+                )}
 
                 {/* ── DEADLINE ALERT ── */}
                 {deadline && (
@@ -1533,7 +1220,7 @@ export default function Home() {
                           ) : (
                             <button
                               className="btn"
-                              onClick={sendDraftReply}
+                              onClick={() => sendDraftReply(selectedMail, handleForMeResult)}
                               disabled={sendingReply}
                               style={{ 
                                 background: "linear-gradient(135deg, #10B981, #059669)", 
@@ -1581,7 +1268,7 @@ export default function Home() {
                               ✅ Reply sent successfully
                             </span>
                           ) : (
-                            <button className="btn" onClick={sendDraftReply} disabled={sendingReply}
+                            <button className="btn" onClick={() => sendDraftReply(selectedMail, handleForMeResult)} disabled={sendingReply}
                               style={{ background: "linear-gradient(135deg, #10B981, #059669)", color: "#fff", border: "none", fontWeight: 700, opacity: sendingReply ? 0.7 : 1, padding: "10px 16px" }}>
                               <Ico.Send /> {sendingReply ? "Sending..." : "Send Reply"}
                             </button>
@@ -1597,15 +1284,15 @@ export default function Home() {
                 )}
 
                 {/* ── PREMIUM INSIGHTS RENDER AREA ── */}
-                {(aiSummary || loadingAI || aiReason || aiReply || extractTasks(selectedMail?.snippet || selectedMail?.body || "").length > 0) && (
+                {(aiSummary || loadingSummary || loadingExplanation || aiReason || aiReply || extractTasks(selectedMail?.snippet || selectedMail?.body || "").length > 0) && (
                   <div className="anim" style={{ marginBottom: 24, padding: "0 8px" }}>
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
                       
                       {/* Left Column: Summary & Reason */}
                       <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-                        {(aiSummary || loadingAI || aiReason) && (
+                        {(aiSummary || loadingSummary || loadingExplanation || aiReason) && (
                           <div style={{ background: "#F8FAFC", border: "1px solid #E2E8F0", borderRadius: 12, padding: "16px 20px" }}>
-                            {loadingAI && <div style={{ fontSize: 13, color: "#64748B", fontStyle: "italic", animation: "pulse 2s infinite" }}>✨ Generating AI Insights...</div>}
+                            {(loadingSummary || loadingExplanation) && <div style={{ fontSize: 13, color: "#64748B", fontStyle: "italic", animation: "pulse 2s infinite" }}>✨ Generating AI Insights...</div>}
                             
                             {aiSummary && (
                               <div style={{ marginBottom: aiReason ? 16 : 0 }}>

@@ -87,4 +87,46 @@ describe('safeISODate', () => {
             expect(isNaN(reparsed.getTime())).toBe(false);
         }
     });
+
+    // --- Expanded coverage ---
+
+    it('handles whitespace-only string', () => {
+        expect(safeISODate('   ')).toBeNull();
+    });
+
+    it('parses Unix epoch string', () => {
+        const result = safeISODate('Thu, 01 Jan 1970 00:00:00 +0000');
+        expect(result).toBe('1970-01-01T00:00:00.000Z');
+    });
+
+    it('parses date with no time component', () => {
+        const result = safeISODate('2024-06-15');
+        expect(result).not.toBeNull();
+    });
+
+    it('does not throw on nested parentheses', () => {
+        expect(() => safeISODate('Tue, 10 Mar 2026 12:12:13 +0000 (UTC)')).not.toThrow();
+    });
+
+    it('does not throw on numeric-only string', () => {
+        expect(() => safeISODate('12345')).not.toThrow();
+    });
+
+    it('handles RFC 2822 with +0530 offset (IST)', () => {
+        const result = safeISODate('Mon, 15 Apr 2024 10:00:00 +0530');
+        expect(result).not.toBeNull();
+        expect(result).toBe('2024-04-15T04:30:00.000Z');
+    });
+
+    it('handles RFC 2822 with -0500 offset (EST)', () => {
+        const result = safeISODate('Mon, 15 Apr 2024 10:00:00 -0500');
+        expect(result).not.toBeNull();
+        expect(result).toBe('2024-04-15T15:00:00.000Z');
+    });
+
+    it('returns a string for valid GMT date', () => {
+        const result = safeISODate('Mon, 01 Jan 2024 00:00:00 GMT');
+        expect(typeof result).toBe('string');
+        expect(result).toBe('2024-01-01T00:00:00.000Z');
+    });
 });

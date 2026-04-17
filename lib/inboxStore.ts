@@ -56,21 +56,25 @@ export interface InboxState {
   // ── AI features ──
   aiSummary: string;
   aiReason: string;
-  loadingAI: boolean;
+  loadingSummary: boolean;
+  loadingExplanation: boolean;
   aiReply: string;
   loadingReply: boolean;
   editableReply: string;
   sendingReply: boolean;
   replySent: boolean;
+  sendError: string | null;
   aiPriorityMap: Record<string, { priority: number; reason?: string }>;
   setAiSummary: (v: string) => void;
   setAiReason: (v: string) => void;
-  setLoadingAI: (v: boolean) => void;
+  setLoadingSummary: (v: boolean) => void;
+  setLoadingExplanation: (v: boolean) => void;
   setAiReply: (v: string) => void;
   setLoadingReply: (v: boolean) => void;
   setEditableReply: (v: string) => void;
   setSendingReply: (v: boolean) => void;
   setReplySent: (v: boolean) => void;
+  setSendError: (v: string | null) => void;
   setAIPriorityMap: (map: Record<string, { priority: number; reason?: string }>) => void;
   updateAIPriority: (id: string, result: { priority: number; reason?: string }) => void;
 
@@ -284,21 +288,25 @@ export const useInboxStore = create<InboxState>((set) => ({
   // ── AI features ──
   aiSummary: "",
   aiReason: "",
-  loadingAI: false,
+  loadingSummary: false,
+  loadingExplanation: false,
   aiReply: "",
   loadingReply: false,
   editableReply: "",
   sendingReply: false,
   replySent: false,
+  sendError: null,
   aiPriorityMap: {},
   setAiSummary: (v) => set({ aiSummary: v }),
   setAiReason: (v) => set({ aiReason: v }),
-  setLoadingAI: (v) => set({ loadingAI: v }),
+  setLoadingSummary: (v) => set({ loadingSummary: v }),
+  setLoadingExplanation: (v) => set({ loadingExplanation: v }),
   setAiReply: (v) => set({ aiReply: v }),
   setLoadingReply: (v) => set({ loadingReply: v }),
   setEditableReply: (v) => set({ editableReply: v }),
   setSendingReply: (v) => set({ sendingReply: v }),
   setReplySent: (v) => set({ replySent: v }),
+  setSendError: (v) => set({ sendError: v }),
   setAIPriorityMap: (map) => set({ aiPriorityMap: map }),
   updateAIPriority: (id, result) =>
     set((s) => ({ aiPriorityMap: { ...s.aiPriorityMap, [id]: result } })),
@@ -376,7 +384,8 @@ export const useInboxStore = create<InboxState>((set) => ({
       aiSummary: "",
       aiReason: "",
       aiReply: "",
-      loadingAI: false,
+      loadingSummary: false,
+      loadingExplanation: false,
       loadingReply: false,
       editableReply: "",
       sendingReply: false,
@@ -392,6 +401,7 @@ export const useInboxStore = create<InboxState>((set) => ({
       triageCollapsed: false,
       copied: false,
       fetchError: null,
+      sendError: null,
     }),
 
   openMailAndReset: (mail) =>
@@ -400,7 +410,8 @@ export const useInboxStore = create<InboxState>((set) => ({
       aiSummary: "",
       aiReason: "",
       aiReply: "",
-      loadingAI: false,
+      loadingSummary: false,
+      loadingExplanation: false,
       loadingReply: false,
       editableReply: "",
       sendingReply: false,
@@ -415,5 +426,6 @@ export const useInboxStore = create<InboxState>((set) => ({
       triageResultBody: null,
       triageCollapsed: false,
       copied: false,
+      sendError: null,
     }),
 }));

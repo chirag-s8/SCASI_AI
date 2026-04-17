@@ -26,20 +26,21 @@ export function extractEmail(raw: string | null | undefined): string {
 export function extractFirstLink(text: string | null): string | null {
   if (!text) return null;
 
-  // Try href attribute first
-  const hrefMatch = text.match(/href=["']([^"']+)["']/i);
-  if (hrefMatch && hrefMatch[1] && hrefMatch[1].startsWith("http")) {
-    let link = hrefMatch[1];
-    const lower = link.toLowerCase();
+  // Check ALL href attributes, skip filtered ones, return the first valid one
+  const hrefRegex = /href=["']([^"']+)["']/gi;
+  let hrefMatch: RegExpExecArray | null;
+  while ((hrefMatch = hrefRegex.exec(text)) !== null) {
+    const rawLink = hrefMatch[1];
+    if (!rawLink.startsWith("http")) continue;
+    const lower = rawLink.toLowerCase();
     if (
       !lower.includes("unsubscribe") &&
       !lower.includes("tracking") &&
       !lower.includes("email-alert") &&
       !lower.includes("manage") &&
-      link.length < 500
+      rawLink.length < 500
     ) {
-      link = link.replace(/&amp;/g, "&");
-      return link;
+      return rawLink.replace(/&amp;/g, "&");
     }
   }
 
