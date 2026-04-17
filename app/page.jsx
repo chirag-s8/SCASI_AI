@@ -14,6 +14,7 @@ import dynamic from "next/dynamic";
 import { motion, AnimatePresence } from "framer-motion";
 import Header from "@/components/dashboard/Header";
 import GeminiSidebar from "@/components/GeminiSidebar";
+import ComposeWithAI from "@/components/dashboard/ComposeWithAI";
 const ScassiHero3D = dynamic(
   () => import("@/components/ScassiHero3D"),
   { ssr: false, loading: () => <div style={{ height: "100vh" }} /> }
@@ -2763,25 +2764,14 @@ export default function Home() {
       </div>
 
       {/* ══════════════════════════════════════════════════
-          COMPOSE MODAL
+          COMPOSE MODAL — powered by ComposeWithAI
       ══════════════════════════════════════════════════ */}
       {showCompose && (
-        <div className="overlay">
-          <div className="modal anim">
-            <div className="modal-ttl">Compose Email</div>
-            <input placeholder="To" className="inp" style={{ marginBottom: 7 }} />
-            <input placeholder="Subject" className="inp" style={{ marginBottom: 7 }} />
-            <textarea placeholder="Write your email…" rows={5} className="inp" style={{ resize: "vertical", marginBottom: 12 }} />
-            <div style={{ display: "flex", gap: 7 }}>
-              <button className="ai-btn" style={{ flex: 1, justifyContent: "center" }}>
-                <Ico.Send /> Send Email
-              </button>
-              <button className="btn" onClick={() => setShowCompose(false)} style={{ flex: 1, justifyContent: "center", padding: "8px 0" }}>
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
+        <ComposeWithAI
+          emails={emails}
+          session={session}
+          onClose={() => setShowCompose(false)}
+        />
       )}
 
       {/* ══════════════════════════════════════════════════
