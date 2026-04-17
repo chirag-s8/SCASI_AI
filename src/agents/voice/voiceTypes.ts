@@ -68,6 +68,7 @@ export interface VoiceControllerReturn {
   startSession: () => void;
   stopSession: () => void;
   cancelTTS: () => void;
+  speakText: (text: string) => Promise<void>;
   isSupported: { stt: boolean; tts: boolean };
 }
 

@@ -267,9 +267,13 @@ export function useVoiceController(options: VoiceControllerOptions = {}): VoiceC
       await speak(cleanForSpeech(answer));
       if (!activeRef.current) return;
 
-      // After speaking, trigger compose modal if we got compose data
+      // After speaking, trigger compose callback — VoiceWidget handles the "read aloud or view" flow
       if (composeData) {
         cbCompose.current?.(composeData);
+        // Speak the prompt asking user what they want to do
+        const draftPrompt = `I've drafted an email to ${composeData.recipientName || 'the recipient'} with subject "${composeData.subject}". Would you like me to read it aloud, or would you like to check it in the compose section?`;
+        await speak(draftPrompt);
+        if (!activeRef.current) return;
       }
 
       startListening();
@@ -413,5 +417,5 @@ export function useVoiceController(options: VoiceControllerOptions = {}): VoiceC
     };
   }, [stopRecognition]);
 
-  return { state, startSession, stopSession, cancelTTS, isSupported };
+  return { state, startSession, stopSession, cancelTTS, speakText: speak, isSupported };
 }
