@@ -81,7 +81,7 @@ Return format:
       if (jsonMatch) {
         events = JSON.parse(jsonMatch[0]);
         // Add emailId to each event
-        events = events.map((event: any) => ({
+        events = events.map((event: Record<string, unknown>) => ({
           ...event,
           emailId,
           from,
@@ -94,9 +94,10 @@ Return format:
     }
 
     return NextResponse.json({ events, count: events.length });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const msg = error instanceof Error ? error.message : 'Unknown error';
     console.error("Calendar extraction error:", error);
-    return NextResponse.json({ events: [], error: error.message });
+    return NextResponse.json({ events: [], error: msg });
   }
 }
 

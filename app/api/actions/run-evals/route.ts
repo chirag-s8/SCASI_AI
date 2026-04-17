@@ -11,7 +11,7 @@ export const maxDuration = 300;
 /** POST — Run the full evaluation suite */
 export async function POST(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions as any); // eslint-disable-line @typescript-eslint/no-explicit-any -- authOptions type mismatch is a known NextAuth issue
+    const session = await getServerSession(authOptions);
     const access = checkEvalAccess(session);
     if (access.ok === false) {
       return NextResponse.json({ error: access.error }, { status: access.status });
@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
 /** GET — Fetch recent eval run history */
 export async function GET() {
   try {
-    const session = await getServerSession(authOptions as any); // eslint-disable-line @typescript-eslint/no-explicit-any -- authOptions type mismatch is a known NextAuth issue
+    const session = await getServerSession(authOptions);
     const access = checkEvalAccess(session);
     if (access.ok === false) {
       return NextResponse.json({ error: access.error }, { status: access.status });

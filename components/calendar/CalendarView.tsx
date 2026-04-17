@@ -37,7 +37,7 @@ function loadFromStorage(): CalendarEvent[] {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return [];
     const today = new Date(); today.setHours(0,0,0,0);
-    return JSON.parse(raw).map((e: any) => ({...e, date: new Date(e.date)})).filter((e: CalendarEvent) => new Date(e.date) >= today);
+    return JSON.parse(raw).map((e: Record<string, unknown>) => ({...e, date: new Date(e.date as string)})).filter((e: CalendarEvent) => new Date(e.date) >= today);
   } catch { return []; }
 }
 function mergeEvts(existing: CalendarEvent[], incoming: CalendarEvent[]): CalendarEvent[] {
@@ -81,7 +81,7 @@ export default function CalendarView({ events: externalEvents, onAddEvent, onDel
       if (!res.ok) return;
       const data = await res.json();
       if (data.events?.length) {
-        const apiEvts = data.events.map((e: any) => ({...e, date: new Date(e.date), type: e.type||"meeting"}));
+        const apiEvts = data.events.map((e: Record<string, unknown>) => ({...e, date: new Date(e.date as string), type: (e.type as CalendarEvent["type"])||"meeting"}));
         setInternalEvents(prev => { const m = mergeEvts(prev, apiEvts); saveToStorage(m); return m; });
       }
     } catch {}
@@ -186,7 +186,7 @@ export default function CalendarView({ events: externalEvents, onAddEvent, onDel
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTitle || !newDate) return;
-    const ev: CalendarEvent = { id:"evt_"+Date.now(), title:newTitle, date:new Date(newDate), time:newTime||undefined, type:newType as any };
+    const ev: CalendarEvent = { id:"evt_"+Date.now(), title:newTitle, date:new Date(newDate), time:newTime||undefined, type:newType as CalendarEvent["type"] };
     if (onAddEvent) { await onAddEvent(ev); }
     else {
       setInternalEvents(prev => { const u=[...prev,ev]; saveToStorage(u); return u; });
@@ -346,7 +346,7 @@ export default function CalendarView({ events: externalEvents, onAddEvent, onDel
                           {new Date(ev.date).toLocaleDateString("en-US",{weekday:"short",month:"short",day:"numeric"})}
                           {ev.time&&<span style={{color:"#7C3AED",fontWeight:600}}> · {ev.time}</span>}
                         </div>
-                        {ev.description&&<div style={{fontSize:10,color:"#9CA3AF",lineHeight:1.4,marginBottom:4,overflow:"hidden",display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical" as any}}>{ev.description.replace("[Auto-extracted by Scasi AI]","").trim()}</div>}
+                        {ev.description&&<div style={{fontSize:10,color:"#9CA3AF",lineHeight:1.4,marginBottom:4,overflow:"hidden",display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical" as React.CSSProperties["WebkitBoxOrient"]}}>{ev.description.replace("[Auto-extracted by Scasi AI]","").trim()}</div>}
                         <div style={{display:"flex",gap:3,flexWrap:"wrap"}}>
                           {ev.aiDetected&&<span style={{fontSize:9,background:"#EDE9FE",color:"#7C3AED",padding:"1px 5px",borderRadius:4,fontWeight:700,border:"1px solid #DDD6FE"}}>✦ AI</span>}
                           {ev.priority==="critical"&&<span style={{fontSize:9,background:"#FEE2E2",color:"#DC2626",padding:"1px 5px",borderRadius:4,fontWeight:700}}>URGENT</span>}

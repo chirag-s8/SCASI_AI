@@ -21,8 +21,6 @@ import type {
 } from './voiceTypes';
 import { truncateToWords, cleanForSpeech } from './voiceUtils';
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
 const GREETING        = "Yeah?";
 const CLOSING_FAREWELL = "Happy to help! Have a great day.";
 const MAX_TTS_WORDS   = 500;
@@ -47,10 +45,9 @@ function isDone(text: string): boolean {
   return /\b(thank\s*you|thanks|bye|goodbye|that'?s?\s*(all|it)|all\s*(good|set)|i'?m?\s*(done|good|all\s*set))\b/.test(n);
 }
 
-function getSpeechRecognitionCtor(): (new () => any) | null {
+function getSpeechRecognitionCtor(): SpeechRecognitionConstructor | null {
   if (typeof window === 'undefined') return null;
-  const w = window as any;
-  return w.SpeechRecognition ?? w.webkitSpeechRecognition ?? null;
+  return window.SpeechRecognition ?? window.webkitSpeechRecognition ?? null;
 }
 
 function isTTSSupported(): boolean {
@@ -79,7 +76,7 @@ function pickFemaleVoice(): SpeechSynthesisVoice | null {
 export function useVoiceController(options: VoiceControllerOptions = {}): VoiceControllerReturn {
   const [state, setState] = useState<VoiceState>('idle');
   const stateRef  = useRef<VoiceState>('idle');
-  const recRef    = useRef<any>(null);
+  const recRef    = useRef<SpeechRecognition | null>(null);
   const timerRef  = useRef<ReturnType<typeof setTimeout> | null>(null);
   const activeRef = useRef(false);
 
@@ -298,7 +295,7 @@ export function useVoiceController(options: VoiceControllerOptions = {}): VoiceC
 
       let finalTranscript = '';
 
-      rec.onresult = (event: any) => {
+      rec.onresult = (event: SpeechRecognitionEvent) => {
         resetTimer();
         let interim = '';
         finalTranscript = '';
@@ -313,7 +310,7 @@ export function useVoiceController(options: VoiceControllerOptions = {}): VoiceC
         if (interim) cbTranscript.current?.(interim);
       };
 
-      rec.onerror = (event: any) => {
+      rec.onerror = (event: SpeechRecognitionErrorEvent) => {
         // 'aborted' fires when we call rec.abort() intentionally — not a real error
         // 'no-speech' fires when mic times out with no audio — also not a real error
         if (event.error === 'aborted' || event.error === 'no-speech') return;

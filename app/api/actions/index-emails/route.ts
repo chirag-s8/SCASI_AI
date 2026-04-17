@@ -45,7 +45,7 @@ function extractBody(payload: Record<string, unknown>): string {
 
 export async function POST(req: Request) {
     const session = await getServerSession(authOptions);
-    if (!session || !(session as Record<string, unknown>).accessToken) {
+    if (!session || !session.accessToken) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -84,7 +84,7 @@ export async function POST(req: Request) {
 
     const auth = new google.auth.OAuth2();
     auth.setCredentials({
-        access_token: (session as Record<string, string>).accessToken,
+        access_token: session.accessToken,
     });
 
     const gmail = google.gmail({ version: 'v1', auth });

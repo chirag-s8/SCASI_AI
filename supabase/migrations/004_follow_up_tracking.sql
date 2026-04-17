@@ -24,6 +24,8 @@ CREATE INDEX IF NOT EXISTS idx_follow_ups_detected   ON public.follow_ups(detect
 -- RLS
 ALTER TABLE public.follow_ups ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can manage their own follow-ups" ON public.follow_ups;
+
 CREATE POLICY "Users can manage their own follow-ups"
   ON public.follow_ups
   FOR ALL

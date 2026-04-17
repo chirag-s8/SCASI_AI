@@ -7,15 +7,13 @@
 
 import type { WakeWordListenerOptions } from './voiceTypes';
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-function getSpeechRecognitionConstructor(): (new () => any) | null {
+function getSpeechRecognitionConstructor(): SpeechRecognitionConstructor | null {
   if (typeof window === 'undefined') return null;
-  const w = window as any;
-  return w.SpeechRecognition ?? w.webkitSpeechRecognition ?? null;
+  return window.SpeechRecognition ?? window.webkitSpeechRecognition ?? null;
 }
 
 export class WakeWordListener {
-  private recognition: any = null;
+  private recognition: SpeechRecognition | null = null;
   private readonly onDetected: () => void;
   private readonly wakePhrase: string;
   private running = false;
@@ -86,7 +84,7 @@ export class WakeWordListener {
     rec.lang = 'en-US';
     rec.maxAlternatives = 3;
 
-    rec.onresult = (event: any) => {
+    rec.onresult = (event: SpeechRecognitionEvent) => {
       for (let i = event.resultIndex; i < event.results.length; i++) {
         // Check both final and interim results for faster response
         for (let alt = 0; alt < event.results[i].length; alt++) {
@@ -116,7 +114,7 @@ export class WakeWordListener {
       }
     };
 
-    rec.onerror = (event: any) => {
+    rec.onerror = (event: SpeechRecognitionErrorEvent) => {
       if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
         this.running = false;
         return;

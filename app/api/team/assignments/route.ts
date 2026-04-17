@@ -19,25 +19,26 @@ export async function GET(req: Request) {
     if (mErr) throw mErr;
     if (aErr) throw aErr;
 
-    const formattedMembers = (members || []).map((m: any) => ({
-      id: m.id,
-      name: m.name,
-      email: m.email,
-      activeTasksCount: m.active_tasks_count,
-      responseRate: m.response_rate,
-      avatar: m.avatar_text || "https://ui-avatars.com/api/?name=" + encodeURIComponent(m.name || m.email)
+    const formattedMembers = (members || []).map((m: Record<string, unknown>) => ({
+      id: m.id as string,
+      name: m.name as string,
+      email: m.email as string,
+      activeTasksCount: m.active_tasks_count as number,
+      responseRate: m.response_rate as number,
+      avatar: (m.avatar_text as string) || "https://ui-avatars.com/api/?name=" + encodeURIComponent((m.name as string) || (m.email as string))
     }));
 
-    const formattedAssignments = (assignments || []).map((a: any) => ({
+    const formattedAssignments = (assignments || []).map((a: Record<string, unknown>) => ({
       ...a,
-      emailId: a.id,
-      assignedTo: a.assignee_email,
+      emailId: a.id as string,
+      assignedTo: a.assignee_email as string,
       notes: []
     }));
 
     return NextResponse.json({ assignments: formattedAssignments, members: formattedMembers });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error: unknown) {
+    const msg = error instanceof Error ? error.message : 'Unknown error';
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
 
@@ -71,8 +72,9 @@ export async function POST(req: Request) {
     }
 
     return NextResponse.json({ assignment: data[0] });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error: unknown) {
+    const msg = error instanceof Error ? error.message : 'Unknown error';
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
 
@@ -104,8 +106,9 @@ export async function PUT(req: Request) {
     };
     
     return NextResponse.json({ member: newMember });
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : 'Unknown error';
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
 

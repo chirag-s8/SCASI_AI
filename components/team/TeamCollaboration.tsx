@@ -289,7 +289,7 @@ export default function TeamCollaboration({ teamMembers: externalTeamMembers, as
           <button
             key={tab.id}
             className={`team-tab ${activeTab === tab.id ? "active" : ""}`}
-            onClick={() => { setActiveTab(tab.id as any); setSelectedProject(null); }}
+            onClick={() => { setActiveTab(tab.id as typeof activeTab); setSelectedProject(null); }}
             style={{
               padding: "12px 16px", background: "transparent", border: "none",
               fontSize: 14, fontWeight: activeTab === tab.id ? 800 : 600,
@@ -646,7 +646,7 @@ export default function TeamCollaboration({ teamMembers: externalTeamMembers, as
   );
 }
 
-function MetricCard({ title, value, icon, gradient }: any) {
+function MetricCard({ title, value, icon, gradient }: { title: string; value: string | number; icon: string; gradient: string }) {
   return (
     <div className="team-card" style={{ padding: 24, borderRadius: 24, background: "white", border: "1px solid #E2D9F3", position: "relative", overflow: "hidden" }}>
       <div style={{ position: "absolute", top: -20, right: -20, width: 100, height: 100, background: gradient, opacity: 0.15, borderRadius: "50%", filter: "blur(20px)" }} />

@@ -54,8 +54,9 @@ export async function callOpenRouter(
 
     const data = await response.json();
     return data.choices[0]?.message?.content || "";
-  } catch (error: any) {
-    console.error("OpenRouter API call failed:", error.message);
+  } catch (error: unknown) {
+    const msg = error instanceof Error ? error.message : 'Unknown error';
+    console.error("OpenRouter API call failed:", msg);
     throw error;
   }
 }
