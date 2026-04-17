@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState, Fragment, useRef, useCallback } from "react";
 import { signOut, useSession } from "next-auth/react";
@@ -14,15 +14,15 @@ import dynamic from "next/dynamic";
 import { motion, AnimatePresence } from "framer-motion";
 import Header from "@/components/dashboard/Header";
 import GeminiSidebar from "@/components/GeminiSidebar";
-import ComposeWithAI from "@/components/dashboard/ComposeWithAI";
+import ComposeWithAI from "@/components/compose/ComposeWithAI";
 const ScassiHero3D = dynamic(
   () => import("@/components/ScassiHero3D"),
   { ssr: false, loading: () => <div style={{ height: "100vh" }} /> }
 );
 
-// ─────────────────────────────────────────────────────────────────
-//  MAIL LOADING ANIMATION  (inline — no external file needed)
-// ─────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+//  MAIL LOADING ANIMATION  (inline â€” no external file needed)
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const MAIL_LINES = [
   { id: "tl", x1: 74, y1: 66, x2: 155, y2: 132 },
@@ -82,7 +82,7 @@ function PurpleOrb({ visible }) {
 }
 
 
-// EmptyStateEnvelope — new animated envelope for detail pane empty state
+// EmptyStateEnvelope â€” new animated envelope for detail pane empty state
 function EmptyStateEnvelope() {
   return (
     <motion.div
@@ -167,7 +167,7 @@ function MailLoadingScreen({ onDone }) {
   const firedRef = useRef(false);
 
   useEffect(() => {
-    // Runs ONCE on mount — empty deps prevents any loop
+    // Runs ONCE on mount â€” empty deps prevents any loop
     const t1 = setTimeout(() => setPhase(1), 300);
     const t2 = setTimeout(() => setPhase(2), 1050);
     const t3 = setTimeout(() => {
@@ -283,7 +283,7 @@ function MailLoadingScreen({ onDone }) {
               fontFamily: "'SF Pro Display','Segoe UI',system-ui,sans-serif",
             }}
           >
-            ✦ &nbsp; Loading your inbox &nbsp; ✦
+            âœ¦ &nbsp; Loading your inbox &nbsp; âœ¦
           </motion.p>
         )}
       </AnimatePresence>
@@ -291,13 +291,13 @@ function MailLoadingScreen({ onDone }) {
   );
 }
 
-// ─────────────────────────────────────────────────────────────────
-//  HOME — Main export. Controls which view is shown.
-//  'landing'  → not logged in  (ScassiHero3D + Header + Dashboard + Footer)
-//  'loading'  → just logged in (MailLoadingScreen animation)
-//  'scasi' → after loading  (Scasi inbox purple glass dashboard)
-//  'inbox'    → clicked any nav (your complete original inbox code)
-// ─────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+//  HOME â€” Main export. Controls which view is shown.
+//  'landing'  â†’ not logged in  (ScassiHero3D + Header + Dashboard + Footer)
+//  'loading'  â†’ just logged in (MailLoadingScreen animation)
+//  'scasi' â†’ after loading  (Scasi inbox purple glass dashboard)
+//  'inbox'    â†’ clicked any nav (your complete original inbox code)
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export default function Home() {
   const { data: session } = useSession();
@@ -306,17 +306,17 @@ export default function Home() {
   useEffect(() => {
     console.log("SESSION:", session);
     if (session?.error === "RefreshAccessTokenError") {
-      console.error("Token refresh failed — signing out");
+      console.error("Token refresh failed â€” signing out");
       signOut({ callbackUrl: "/" });
     }
   }, [session]);
 
-  // ── view state to control which screen is shown ──
+  // â”€â”€ view state to control which screen is shown â”€â”€
   const [appView, setAppView] = useState("landing");
   // Track if we've shown the loading animation
   const [hasShownLoading, setHasShownLoading] = useState(false);
 
-  // When session arrives switch from landing → loading animation
+  // When session arrives switch from landing â†’ loading animation
   useEffect(() => {
     if (session && appView === "landing" && !hasShownLoading) {
       // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional state machine transition
@@ -325,7 +325,7 @@ export default function Home() {
     }
   }, [session, appView, hasShownLoading]);
 
-  // Called by MailLoadingScreen when animation finishes — wrapped in useCallback so it never changes reference
+  // Called by MailLoadingScreen when animation finishes â€” wrapped in useCallback so it never changes reference
   const handleLoadingDone = useCallback(() => {
     setAppView("scasi");
   }, []);
@@ -341,14 +341,14 @@ export default function Home() {
   const [geminiReply, setGeminiReply] = useState("");
   const [loadingGemini, setLoadingGemini] = useState(false);
 
-  // 🔔 Notification Count
+  // ðŸ”” Notification Count
   const [newMailCount, setNewMailCount] = useState(0);
-  // 🔔 Notification Dropdown
+  // ðŸ”” Notification Dropdown
   const [showNotifications, setShowNotifications] = useState(false);
 
-  // 🔔 Store New Emails List
+  // ðŸ”” Store New Emails List
   const [newMails, setNewMails] = useState([]);
-  // ✅ Toolbar Feature States
+  // âœ… Toolbar Feature States
   const [showCompose, setShowCompose] = useState(false);
   const [showGemini, setShowGemini] = useState(false);
 
@@ -367,27 +367,27 @@ export default function Home() {
     if (!selectedMail || !handleForMeResult) return;
 
     // Extract only the draft reply body from the AI markdown output
-    // The orchestrator formats it as: **Draft Reply:**\n<body>\n\n⚠️ Review...
+    // The orchestrator formats it as: **Draft Reply:**\n<body>\n\nâš ï¸ Review...
     let draftBody = handleForMeResult;
 
     // Strategy 1: match **Draft Reply:** heading followed by content
     const draftHeadingMatch = handleForMeResult.match(
-      /\*\*Draft Reply:\*\*\s*\n+([\s\S]+?)(?=\n{0,2}⚠️|$)/
+      /\*\*Draft Reply:\*\*\s*\n+([\s\S]+?)(?=\n{0,2}âš ï¸|$)/
     );
     if (draftHeadingMatch) {
       draftBody = draftHeadingMatch[1].trim();
     } else {
       // Strategy 2: match from greeting to end/warning
       const greetingMatch = handleForMeResult.match(
-        /(?:^|\n)((?:Dear|Hi|Hello|Good\s+\w+)[\s\S]+?)(?=\n{0,2}⚠️|$)/i
+        /(?:^|\n)((?:Dear|Hi|Hello|Good\s+\w+)[\s\S]+?)(?=\n{0,2}âš ï¸|$)/i
       );
       if (greetingMatch) draftBody = greetingMatch[1].trim();
     }
 
-    // Strip any remaining ⚠️ warning lines
-    draftBody = draftBody.replace(/⚠️[^\n]*/g, "").trim();
+    // Strip any remaining âš ï¸ warning lines
+    draftBody = draftBody.replace(/âš ï¸[^\n]*/g, "").trim();
 
-    // Extract recipient — priority: Reply-To > From (skip if own email or noreply) > To
+    // Extract recipient â€” priority: Reply-To > From (skip if own email or noreply) > To
     // Handles "Display Name <email@domain.com>" and plain "email@domain.com"
     function extractEmailAddr(field) {
       if (!field) return "";
@@ -427,14 +427,14 @@ export default function Home() {
 
     if (!to) {
       alert(
-        `❌ This email was sent from a no-reply address and cannot be replied to.\n\nFrom: "${selectedMail.from}"\nTo: "${selectedMail.to}"`
+        `âŒ This email was sent from a no-reply address and cannot be replied to.\n\nFrom: "${selectedMail.from}"\nTo: "${selectedMail.to}"`
       );
       return;
     }
 
     setSendingReply(true);
     try {
-      console.log("🚀 Sending reply with data:", {
+      console.log("ðŸš€ Sending reply with data:", {
         to,
         subject: selectedMail.subject?.substring(0, 50),
         threadId: selectedMail.threadId || selectedMail.id,
@@ -456,17 +456,17 @@ export default function Home() {
       if (!res.ok) throw new Error(`Send API error: ${res.status}`);
       const data = await res.json();
       
-      console.log("📬 Send response:", data);
+      console.log("ðŸ“¬ Send response:", data);
       
       if (data.success) {
         setReplySent(true);
-        console.log("✅ Reply sent successfully to:", to);
+        console.log("âœ… Reply sent successfully to:", to);
       } else {
-        alert("❌ Failed to send: " + (data.error || "Unknown error"));
+        alert("âŒ Failed to send: " + (data.error || "Unknown error"));
       }
     } catch (err) {
-      console.error("❌ Send error:", err);
-      alert("❌ Network error: " + err.message);
+      console.error("âŒ Send error:", err);
+      alert("âŒ Network error: " + err.message);
     }
     setSendingReply(false);
   }
@@ -482,14 +482,14 @@ export default function Home() {
   const [hfmData, setHfmData] = useState(null);
   const [safeIds, setSafeIds] = useState([]);
   const [reportedIds, setReportedIds] = useState([]);
-  // ⭐ Starred Emails
+  // â­ Starred Emails
   const [starredIds, setStarredIds] = useState(() => {
     if (typeof window === "undefined") return [];
     const saved = localStorage.getItem("starredIds");
     try { return saved ? JSON.parse(saved) : []; } catch { return []; }
   });
 
-  // ⏳ Snoozed Emails (hidden temporarily)
+  // â³ Snoozed Emails (hidden temporarily)
   const [snoozedIds, setSnoozedIds] = useState(() => {
     if (typeof window === "undefined") return [];
     const saved = localStorage.getItem("snoozedIds");
@@ -500,14 +500,14 @@ export default function Home() {
 
 
 
-  // ✅ Done Emails
+  // âœ… Done Emails
   const [doneIds, setDoneIds] = useState(() => {
     if (typeof window === "undefined") return [];
     const saved = localStorage.getItem("doneIds");
     try { return saved ? JSON.parse(saved) : []; } catch { return []; }
   });
 
-  // ── MODIFIED: activeFolder now initialises from the value set by Scasi inbox nav ──
+  // â”€â”€ MODIFIED: activeFolder now initialises from the value set by Scasi inbox nav â”€â”€
   const [activeFolder, setActiveFolder] = useState("inbox");
 
   // Sync activeFolder when inbox view is first entered from Scasi inbox
@@ -524,17 +524,17 @@ export default function Home() {
   const [selectedMail, setSelectedMail] = useState(null);
   const ragIndexedRef = useRef(false);
 
-  // ✅ FIX 1: Default tab to "All Mails"
+  // âœ… FIX 1: Default tab to "All Mails"
   const [activeTab, setActiveTab] = useState("All Mails");
 
-  // 🔍 Search Query
+  // ðŸ” Search Query
   const [searchQuery, setSearchQuery] = useState("");
 
-  // ✅ Deadline + Urgency Inputs
+  // âœ… Deadline + Urgency Inputs
   const [deadline, setDeadline] = useState("");
   const [urgency, setUrgency] = useState("Normal");
 
-  // ⭐ Toggle Star
+  // â­ Toggle Star
   function toggleStar() {
     if (!selectedMail) return;
     setStarredIds((prev) => {
@@ -546,7 +546,7 @@ export default function Home() {
     });
   }
 
-  // ⏳ Snooze Email (hide from inbox)
+  // â³ Snooze Email (hide from inbox)
   function snoozeMail() {
     if (!selectedMail) return;
     setSnoozedIds((prev) => {
@@ -584,16 +584,16 @@ export default function Home() {
       if (data.reply) {
         setGeminiReply(data.reply);
       } else {
-        setGeminiReply("❌ Gemini failed: " + data.error);
+        setGeminiReply("âŒ Gemini failed: " + data.error);
       }
     } catch (err) {
       console.error("Gemini error:", err);
-      setGeminiReply("❌ Network error: " + (err.message || "Failed to reach Gemini"));
+      setGeminiReply("âŒ Network error: " + (err.message || "Failed to reach Gemini"));
     }
     setLoadingGemini(false);
   }
 
-  // ✅ Mark Done (remove from inbox)
+  // âœ… Mark Done (remove from inbox)
   function markDone() {
     if (!selectedMail) return;
     setDoneIds((prev) => {
@@ -606,10 +606,10 @@ export default function Home() {
 
   function deleteSelectedMail() {
     if (!selectedMail) {
-      alert("❌ Please select an email first");
+      alert("âŒ Please select an email first");
       return;
     }
-    alert("🗑 Delete feature will be connected to Gmail API next");
+    alert("ðŸ—‘ Delete feature will be connected to Gmail API next");
   }
 
   const loadEmails = async () => {
@@ -647,12 +647,12 @@ export default function Home() {
     });
     setNextPageToken(data.nextPageToken || null);
     } catch (err) {
-      console.error("❌ Error loading emails:", err);
+      console.error("âŒ Error loading emails:", err);
     }
     setLoading(false);
   };
 
-  // ✅ FIXED: Combined function that fetches email AND generates AI
+  // âœ… FIXED: Combined function that fetches email AND generates AI
   const openMailAndGenerateAI = async (id, _mailPreview) => {
     setAiSummary("");
     setAiReason("");
@@ -699,7 +699,7 @@ export default function Home() {
       });
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}));
-        setHandleForMeResult("❌ " + (errData.error || "Failed to process email. Please try again."));
+        setHandleForMeResult("âŒ " + (errData.error || "Failed to process email. Please try again."));
         setLoadingHandleForMe(false);
         return;
       }
@@ -724,7 +724,7 @@ export default function Home() {
                 collected += evt.text;
                 setHandleForMeResult(collected);
               } else if (evt.type === "error") {
-                collected += "\n❌ " + evt.message;
+                collected += "\nâŒ " + evt.message;
                 setHandleForMeResult(collected);
               }
             } catch { /* skip malformed SSE */ }
@@ -740,13 +740,13 @@ export default function Home() {
         const sumMatch = collected.match(/\*\*Summary:\*\*\s*(.+?)(?=\n\*\*|\n\n|$)/s);
         const deadlineMatch = collected.match(/\*\*Deadline:\*\*\s*(.+?)(?=\n|$)/);
         const tasksSection = collected.match(/\*\*Tasks:\*\*\s*\n([\s\S]+?)(?=\n\n\*\*|$)/);
-        const draftMatch = collected.match(/\*\*Draft Reply:\*\*\s*\n+([\s\S]+?)(?=\n{0,2}⚠️|\n{0,2}🔔|$)/);
-        const followUpMatch = collected.match(/🔔\s*\*\*Follow-up tracked\*\*\s*—\s*detected signal:\s*"(.+?)"/);
+        const draftMatch = collected.match(/\*\*Draft Reply:\*\*\s*\n+([\s\S]+?)(?=\n{0,2}âš ï¸|\n{0,2}ðŸ””|$)/);
+        const followUpMatch = collected.match(/ðŸ””\s*\*\*Follow-up tracked\*\*\s*â€”\s*detected signal:\s*"(.+?)"/);
 
         const tasks = [];
         if (tasksSection) {
           for (const line of tasksSection[1].split('\n')) {
-            const cleaned = line.replace(/^[•\-]\s*/, '').trim();
+            const cleaned = line.replace(/^[â€¢\-]\s*/, '').trim();
             if (cleaned && cleaned !== 'No specific tasks detected.') tasks.push(cleaned);
           }
         }
@@ -754,7 +754,7 @@ export default function Home() {
         let draftReply = '';
         if (draftMatch) {
           draftReply = draftMatch[1].trim()
-            .replace(/⚠️[^\n]*/g, '').replace(/🔔[^\n]*/g, '')
+            .replace(/âš ï¸[^\n]*/g, '').replace(/ðŸ””[^\n]*/g, '')
             .replace(/(Dear\s+.*?,|Hi\s+.*?,|Hello\s+.*?,|Greetings\s+.*?,)\s*/gi, '$1\n\n')
             .replace(/\s*(Best regards,|Sincerely,|Thanks,|Warm regards,|Cheers,|Yours truly,)/gi, '\n\n$1\n')
             .trim();
@@ -776,7 +776,7 @@ export default function Home() {
       }
     } catch (err) {
       console.error("Handle For Me error:", err);
-      setHandleForMeResult("❌ Error: " + (err.message || "Network error"));
+      setHandleForMeResult("âŒ Error: " + (err.message || "Network error"));
     }
     setLoadingHandleForMe(false);
   }
@@ -806,37 +806,37 @@ export default function Home() {
       setTriageStep(3);
       const data = await res.json();
       if (data.error) {
-        setTriageResultBody("❌ " + data.error);
+        setTriageResultBody("âŒ " + data.error);
       } else if (data.raw) {
         setTriageResultBody(data.raw);
       } else if (data.stats && data.items) {
         setTriageResultBody(data);
       } else {
-        setTriageResultBody("❌ Unexpected response from triage service.");
+        setTriageResultBody("âŒ Unexpected response from triage service.");
       }
     } catch (e) {
       console.error('[triage] Client error:', e);
-      setTriageResultBody("❌ Could not connect to the triage service. Check your connection and try again.");
+      setTriageResultBody("âŒ Could not connect to the triage service. Check your connection and try again.");
     }
     setTriageStep(0);
     setTriageLoading(false);
   }
 
   async function generateReply() {
-    console.log("✅ generateReply() running...");
+    console.log("âœ… generateReply() running...");
     if (!selectedMail) {
-      console.log("❌ No email selected");
+      console.log("âŒ No email selected");
       alert("Please select an email first");
       return;
     }
-    console.log("📧 Email data:", {
+    console.log("ðŸ“§ Email data:", {
       subject: selectedMail.subject,
       snippet: selectedMail.snippet?.substring(0, 100),
     });
     setLoadingReply(true);
     setAiReply("");
     try {
-      console.log("🚀 Sending request to /api/ai/reply...");
+      console.log("ðŸš€ Sending request to /api/ai/reply...");
       const res = await fetch("/api/ai/reply", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -845,21 +845,21 @@ export default function Home() {
           snippet: selectedMail.snippet || selectedMail.body || "",
         }),
       });
-      console.log("📥 Response status:", res.status);
+      console.log("ðŸ“¥ Response status:", res.status);
       if (!res.ok) throw new Error(`Reply API error: ${res.status}`);
       const data = await res.json();
-      console.log("📦 Response data:", data);
+      console.log("ðŸ“¦ Response data:", data);
       if (data.error) {
-        console.error("❌ API Error:", data.error);
+        console.error("âŒ API Error:", data.error);
         alert("Error: " + data.error);
         setLoadingReply(false);
         return;
       }
       setAiReply(data.reply);
       setEditableReply(data.reply);
-      console.log("✅ Reply generated successfully!");
+      console.log("âœ… Reply generated successfully!");
     } catch (error) {
-      console.error("❌ Fetch error:", error);
+      console.error("âŒ Fetch error:", error);
       alert("Failed to generate reply. Check console for details.");
     }
     setLoadingReply(false);
@@ -870,7 +870,7 @@ export default function Home() {
     try {
       const emailContent = cleanEmailBody(mail.body || mail.snippet || "");
       if (!emailContent) {
-        setAiSummary("⚠️ No email content available.");
+        setAiSummary("âš ï¸ No email content available.");
         setLoadingAI(false);
         return;
       }
@@ -887,13 +887,13 @@ export default function Home() {
       if (!res.ok) throw new Error(`Summary API error: ${res.status}`);
       const data = await res.json();
       if (data.error) {
-        setAiSummary("❌ " + data.error);
+        setAiSummary("âŒ " + data.error);
       } else {
         setAiSummary(data.summary || "No summary generated.");
       }
     } catch (err) {
       console.error("Summary error:", err);
-      setAiSummary("❌ Failed to generate summary: " + (err.message || "Network error"));
+      setAiSummary("âŒ Failed to generate summary: " + (err.message || "Network error"));
     }
     setLoadingAI(false);
   }
@@ -938,13 +938,13 @@ export default function Home() {
       if (!res.ok) throw new Error(`Explain API error: ${res.status}`);
       const data = await res.json();
       if (data.error) {
-        setAiReason("❌ " + data.error);
+        setAiReason("âŒ " + data.error);
       } else {
         setAiReason(data.explanation || "No explanation generated.");
       }
     } catch (err) {
       console.error("Explanation error:", err);
-      setAiReason("❌ Failed to generate explanation: " + (err.message || "Network error"));
+      setAiReason("âŒ Failed to generate explanation: " + (err.message || "Network error"));
     }
     setLoadingAI(false);
   }
@@ -958,7 +958,7 @@ export default function Home() {
       lower.includes("invoice") ||
       lower.includes("bill")
     ) {
-      tasks.push("💳 Make the payment");
+      tasks.push("ðŸ’³ Make the payment");
     }
     if (
       lower.includes("meeting") ||
@@ -966,7 +966,7 @@ export default function Home() {
       lower.includes("google meet") ||
       lower.includes("schedule")
     ) {
-      tasks.push("📅 Attend the meeting");
+      tasks.push("ðŸ“… Attend the meeting");
     }
     if (
       lower.includes("job") ||
@@ -974,12 +974,12 @@ export default function Home() {
       lower.includes("interview") ||
       lower.includes("offer letter")
     ) {
-      tasks.push("📝 Apply / Respond to recruiter");
+      tasks.push("ðŸ“ Apply / Respond to recruiter");
     }
     if (lower.includes("deadline") || lower.includes("urgent")) {
-      tasks.push("⏰ Take action immediately");
+      tasks.push("â° Take action immediately");
     }
-    if (tasks.length === 0) tasks.push("📌 No urgent action required");
+    if (tasks.length === 0) tasks.push("ðŸ“Œ No urgent action required");
     return tasks;
   }
 
@@ -1001,12 +1001,12 @@ export default function Home() {
 
   function getUrgencyLevel(deadlineText) {
     if (!deadlineText) return "None";
-    if (deadlineText === "Today") return "🔥 Very High";
-    if (deadlineText === "Tomorrow") return "⚠️ High";
-    return "📌 Medium";
+    if (deadlineText === "Today") return "ðŸ”¥ Very High";
+    if (deadlineText === "Tomorrow") return "âš ï¸ High";
+    return "ðŸ“Œ Medium";
   }
 
-  // ✅ FIX 4: Load emails when session is available
+  // âœ… FIX 4: Load emails when session is available
   const fetchEmails = async (folder = activeFolder, token = null) => {
     setLoading(true);
     try {
@@ -1049,14 +1049,14 @@ export default function Home() {
         }).catch(e => console.error(e));
       }
     } catch (error) {
-      console.error("❌ Error loading emails:", error);
+      console.error("âŒ Error loading emails:", error);
     }
     setLoading(false);
   };
 
   useEffect(() => {
     if (!session) return;
-    console.log(`✅ Session found. Loading emails for ${activeFolder}...`);
+    console.log(`âœ… Session found. Loading emails for ${activeFolder}...`);
     setEmails([]);
     setNextPageToken(null);
     fetchEmails(activeFolder, null);
@@ -1147,24 +1147,24 @@ export default function Home() {
     return "#059669";
   }
 
-  // ── SENTIMENT / TONE DETECTION ────────────────────────────────
+  // â”€â”€ SENTIMENT / TONE DETECTION â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   function getToneInfo(mail) {
-    if (!mail) return { label: "Professional", icon: "⬡", color: "#4F46E5", bg: "#EEF2FF", msg: "Standard professional tone is appropriate." };
+    if (!mail) return { label: "Professional", icon: "â¬¡", color: "#4F46E5", bg: "#EEF2FF", msg: "Standard professional tone is appropriate." };
     const text = ((mail.subject || "") + " " + (mail.snippet || "") + " " + (mail.body || "")).toLowerCase();
     
     if (text.includes("unacceptable") || text.includes("disappointed") || text.includes("complaint") || text.includes("frustrated") || text.includes("terrible") || text.includes("issue") || text.includes("fix this") || text.includes("fail") || text.includes("worst") || text.includes("refund")) {
-      return { label: "Frustrated", icon: "⚡", color: "#B91C1C", bg: "#FEF2F2", msg: "Consider delivering a careful, empathetic response." };
+      return { label: "Frustrated", icon: "âš¡", color: "#B91C1C", bg: "#FEF2F2", msg: "Consider delivering a careful, empathetic response." };
     }
     if (text.includes("urgent") || text.includes("asap") || text.includes("deadline") || text.includes("immediately") || text.includes("important") || text.includes("emergency")) {
-      return { label: "Urgent", icon: "◬", color: "#C2410C", bg: "#FFF7ED", msg: "Action required immediately to prevent delays." };
+      return { label: "Urgent", icon: "â—¬", color: "#C2410C", bg: "#FFF7ED", msg: "Action required immediately to prevent delays." };
     }
     if (text.includes("thank you") || text.includes("thanks") || text.includes("great job") || text.includes("awesome") || text.includes("love") || text.includes("excited") || text.includes("cheers") || text.includes("happy") || text.includes("hope you're doing well") || text.includes("would be great")) {
-      return { label: "Friendly", icon: "✦", color: "#047857", bg: "#F0FDF4", msg: "Keep the interaction warm and approachable." };
+      return { label: "Friendly", icon: "âœ¦", color: "#047857", bg: "#F0FDF4", msg: "Keep the interaction warm and approachable." };
     }
-    return { label: "Professional", icon: "⬡", color: "#4338CA", bg: "#EEF2FF", msg: "Standard professional tone is appropriate." };
+    return { label: "Professional", icon: "â¬¡", color: "#4338CA", bg: "#EEF2FF", msg: "Standard professional tone is appropriate." };
   }
 
-  // ── PHISHING / SCAM DETECTION (FREE — rule-based, no LLM) ─────
+  // â”€â”€ PHISHING / SCAM DETECTION (FREE â€” rule-based, no LLM) â”€â”€â”€â”€â”€
   function getPhishingInfo(mail) {
     if (!mail) return { isPhishing: false, score: 0, reasons: [] };
     const subject = (mail.subject || "").toLowerCase();
@@ -1221,7 +1221,7 @@ export default function Home() {
     return { isPhishing, score: Math.min(score, 100), reasons, level };
   }
 
-  // ── DISTINCT CATEGORY COLOURS ─────────────────────────────────
+  // â”€â”€ DISTINCT CATEGORY COLOURS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   function getCategoryColor(category) {
     if (category === "Do Now") return "#DC2626"; // red
     if (category === "Needs Decision") return "#D97706"; // amber
@@ -1268,7 +1268,7 @@ export default function Home() {
     let stressLevel = "Low";
     if (stressScore > 70) stressLevel = "High";
     else if (stressScore > 40) stressLevel = "Medium";
-    let workloadTrend = emails.length > 15 ? "Increasing 📈" : "Stable ✅";
+    let workloadTrend = emails.length > 15 ? "Increasing ðŸ“ˆ" : "Stable âœ…";
     let recommendation =
       stressLevel === "High"
         ? "Delegate or Snooze low-priority emails"
@@ -1356,7 +1356,7 @@ export default function Home() {
       .trim();
   }
 
-  /* ✅ ADD THIS EXACTLY HERE */
+  /* âœ… ADD THIS EXACTLY HERE */
   function extractEmail(raw) {
     if (!raw) return "";
     const match = raw.match(/<(.+?)>/);
@@ -1365,7 +1365,7 @@ export default function Home() {
     return "";
   }
 
-  // ✅ Helper function to get initials from email
+  // âœ… Helper function to get initials from email
   function getInitials(email) {
     if (!email) return "?";
     const name = email.split("@")[0];
@@ -1376,7 +1376,7 @@ export default function Home() {
     return name.substring(0, 2).toUpperCase();
   }
 
-  // ── RENDER: Not logged in → landing ──
+  // â”€â”€ RENDER: Not logged in â†’ landing â”€â”€
   if (!session) {
     return (
       <main className="min-h-screen">
@@ -1387,12 +1387,12 @@ export default function Home() {
     );
   }
 
-  // ── RENDER: Just logged in → mail loading animation ──
+  // â”€â”€ RENDER: Just logged in â†’ mail loading animation â”€â”€
   if (appView === "loading") {
     return <MailLoadingScreen onDone={handleLoadingDone} />;
   }
 
-  // ── RENDER: Logged in but haven't navigated yet → Scasi inbox dashboard ──
+  // â”€â”€ RENDER: Logged in but haven't navigated yet â†’ Scasi inbox dashboard â”€â”€
   if (appView === "scasi") {
     return (
       <ScasiDashboard
@@ -1405,9 +1405,9 @@ export default function Home() {
     );
   }
 
-  // ── RENDER: User clicked a nav item → full inbox ──
+  // â”€â”€ RENDER: User clicked a nav item â†’ full inbox â”€â”€
 
-  // ✅ FIX 3: Proper filtering with BOTH activeTab AND activeFolder
+  // âœ… FIX 3: Proper filtering with BOTH activeTab AND activeFolder
   const filteredEmails = emails.filter((mail) => {
     // Hide reported phishing emails
     if (reportedIds.includes(mail.id)) return false;
@@ -1427,7 +1427,7 @@ export default function Home() {
     // the backend /api/gmail?folder=... ALREADY returns exactly the right emails!
     // So we don't need to filter them out locally.
 
-    // 🔍 SEARCH FILTER
+    // ðŸ” SEARCH FILTER
     if (searchQuery.trim() !== "") {
       const query = searchQuery.toLowerCase();
       const subjectMatch = mail.subject?.toLowerCase().includes(query);
@@ -1444,7 +1444,7 @@ export default function Home() {
 
   const burnout = getBurnoutStats(filteredEmails);
 
-  // ── SVG ICON SET (all inline, no external deps) ────────────────
+  // â”€â”€ SVG ICON SET (all inline, no external deps) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const Ico = {
     Inbox: () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12" /><path d="M5.45 5.11L2 12v6a2 2 0 002 2h16a2 2 0 002-2v-6l-3.45-6.89A2 2 0 0016.76 4H7.24a2 2 0 00-1.79 1.11z" /></svg>,
     Star: () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" /></svg>,
@@ -1473,7 +1473,7 @@ export default function Home() {
     Attach: () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48" /></svg>,
   };
 
-  // ── SIDEBAR CONFIG ─────────────────────────────────────────────
+  // â”€â”€ SIDEBAR CONFIG â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const mailNav = [
     { key: "inbox", label: "Inbox", icon: <Ico.Inbox />, count: newMailCount },
     { key: "starred", label: "Starred", icon: <Ico.Star /> },
@@ -1494,10 +1494,10 @@ export default function Home() {
     { key: "Low Energy", color: "#059669", bg: "#F0FDF4" },
   ];
 
-  // ─────────────────────────────────────────────────────────────
+  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   return (
     <>
-      {/* ── GLOBAL STYLES ── */}
+      {/* â”€â”€ GLOBAL STYLES â”€â”€ */}
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Syne:wght@600;700;800&display=swap');
 
@@ -1510,7 +1510,7 @@ export default function Home() {
         ::-webkit-scrollbar-thumb { background: #C4B5FD; border-radius: 99px; }
         ::-webkit-scrollbar-thumb:hover { background: #A78BFA; }
 
-        /* ─ sidebar ─ */
+        /* â”€ sidebar â”€ */
         .sb { background: #170A35; height: 100%; display: flex; flex-direction: column; overflow: hidden; transition: width .22s cubic-bezier(.4,0,.2,1), min-width .22s cubic-bezier(.4,0,.2,1); border-right: 1px solid rgba(196,181,253,.08); }
         .sb-lbl { font-size: 9px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: rgba(167,139,250,.4); padding: 12px 14px 4px; white-space: nowrap; overflow: hidden; }
         .sb-item { display: flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 7px; margin: 1px 6px; cursor: pointer; font-size: 12px; font-weight: 500; color: #C4B5FD; white-space: nowrap; overflow: hidden; transition: background .14s, color .14s; position: relative; }
@@ -1520,16 +1520,16 @@ export default function Home() {
         .sb-item svg { flex-shrink: 0; opacity: .75; }
         .sb-badge { margin-left: auto; background: #7C3AED; color: #fff; border-radius: 99px; font-size: 8.5px; font-weight: 800; min-width: 15px; height: 15px; padding: 0 3px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 
-        /* ─ topbar ─ */
+        /* â”€ topbar â”€ */
         .topbar { height: 50px; background: #fff; border-bottom: 1px solid #EDE9FE; display: flex; align-items: center; gap: 8px; padding: 0 14px; flex-shrink: 0; position: fixed; top: 0; left: 0; right: 0; z-index: 1000; box-shadow: 0 1px 0 #EDE9FE; }
 
-        /* ─ search ─ */
+        /* â”€ search â”€ */
         .srch { flex: 1; max-width: 380px; position: relative; }
         .srch input { width: 100%; padding: 6px 10px 6px 28px; border-radius: 7px; border: 1px solid #E2D9F3; background: #FAF8FF; font-size: 12px; font-family: 'DM Sans', sans-serif; color: #18103A; outline: none; transition: border .14s; }
         .srch input:focus { border-color: #A78BFA; box-shadow: 0 0 0 2.5px rgba(167,139,250,.18); }
         .srch-ic { position: absolute; left: 9px; top: 50%; transform: translateY(-50%); color: #A78BFA; pointer-events: none; display: flex; }
 
-        /* ─ buttons ─ */
+        /* â”€ buttons â”€ */
         .btn { display: inline-flex; align-items: center; gap: 5px; padding: 5px 9px; border-radius: 7px; border: 1px solid #E2D9F3; background: #fff; color: #4C1D95; font-size: 11px; font-weight: 600; font-family: 'DM Sans', sans-serif; cursor: pointer; transition: all .14s; white-space: nowrap; line-height: 1; }
         .btn:hover { background: #F5F3FF; border-color: #C4B5FD; color: #7C3AED; }
         .btn.pri { background: #7C3AED; border-color: #7C3AED; color: #fff; box-shadow: 0 2px 7px rgba(124,58,237,.28); }
@@ -1543,43 +1543,43 @@ export default function Home() {
         .btn.ghost { background: transparent; border-color: transparent; }
         .btn.ghost:hover { background: #F5F3FF; border-color: #EDE9FE; }
 
-        /* ─ ai button ─ */
+        /* â”€ ai button â”€ */
         .ai-btn { display: inline-flex; align-items: center; gap: 5px; padding: 6px 12px; border-radius: 7px; border: none; background: linear-gradient(135deg,#7C3AED 0%,#8B5CF6 100%); color: #fff; font-size: 11.5px; font-weight: 700; font-family: 'DM Sans', sans-serif; cursor: pointer; box-shadow: 0 2px 9px rgba(124,58,237,.28); transition: all .17s; }
         .ai-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 13px rgba(124,58,237,.36); }
         .ai-btn:active { transform: none; }
         .ai-btn.sm { padding: 4px 9px; font-size: 10.5px; }
 
-        /* ─ cards ─ */
+        /* â”€ cards â”€ */
         .card { background: #fff; border: 1px solid #EDE9FE; border-radius: 10px; padding: 12px 14px; }
         .card-pu { background: linear-gradient(135deg,#F5F3FF 0%,#EDE9FE 100%); border: 1px solid #DDD6FE; border-radius: 10px; padding: 12px 14px; }
         .card-ttl { font-size: 11px; font-weight: 700; color: #4C1D95; margin-bottom: 9px; display: flex; align-items: center; gap: 5px; letter-spacing: .01em; }
 
-        /* ─ mail row ─ */
+        /* â”€ mail row â”€ */
         .mail-row { padding: 8px 12px; border-bottom: 1px solid #F3F0FF; cursor: pointer; transition: background .1s; display: flex; align-items: flex-start; gap: 8px; }
         .mail-row:hover { background: #FAF8FF; }
         .mail-row.sel { background: #F0EBFF; border-left: 2.5px solid #7C3AED; }
         .mail-row:not(.sel) { border-left: 2.5px solid transparent; }
 
-        /* ─ pill ─ */
+        /* â”€ pill â”€ */
         .pill { display: inline-flex; align-items: center; padding: 1.5px 6px; border-radius: 99px; font-size: 9.5px; font-weight: 700; }
 
-        /* ─ inputs ─ */
+        /* â”€ inputs â”€ */
         .inp { width: 100%; padding: 7px 10px; border-radius: 7px; border: 1px solid #E2D9F3; background: #FAF8FF; font-size: 12px; font-family: 'DM Sans', sans-serif; color: #18103A; outline: none; transition: border .14s; }
         .inp:focus { border-color: #A78BFA; box-shadow: 0 0 0 2.5px rgba(167,139,250,.14); }
 
-        /* ─ overlay + modal ─ */
+        /* â”€ overlay + modal â”€ */
         .overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(15,4,44,.65); backdrop-filter: blur(7px); display: flex; justify-content: center; align-items: center; z-index: 99999; }
         .modal { background: #fff; border-radius: 14px; padding: 20px 22px; box-shadow: 0 18px 52px rgba(124,58,237,.22); border: 1px solid #DDD6FE; width: 460px; max-width: 94vw; }
         .modal-ttl { font-family: 'Syne', sans-serif; font-size: 14px; font-weight: 800; color: #18103A; margin-bottom: 12px; }
 
-        /* ─ notif dropdown ─ */
+        /* â”€ notif dropdown â”€ */
         .notif-dd { position: absolute; right: 0; top: 38px; width: 280px; background: #fff; border: 1px solid #DDD6FE; border-radius: 11px; box-shadow: 0 9px 28px rgba(124,58,237,.14); z-index: 9999; padding: 9px; }
 
-        /* ─ priority bar ─ */
+        /* â”€ priority bar â”€ */
         .pbar { height: 2.5px; border-radius: 99px; background: #EDE9FE; overflow: hidden; }
         .pbar-fill { height: 100%; border-radius: 99px; }
 
-        /* ─ animations ─ */
+        /* â”€ animations â”€ */
         @keyframes sl { from { opacity:0; transform:translateY(5px); } to { opacity:1; transform:translateY(0); } }
         .anim { animation: sl .18s ease forwards; }
         @keyframes pu { 0%,100% { opacity:1; } 50% { opacity:.3; } }
@@ -1588,17 +1588,17 @@ export default function Home() {
         @keyframes threat-shimmer { 0% { background-position: -200% center; } 100% { background-position: 200% center; } }
         .threat-badge { animation: threat-glow 1.6s ease-in-out infinite; }
 
-        /* ─ detail heading ─ */
+        /* â”€ detail heading â”€ */
         .d-hd { font-size: 10px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: #A78BFA; margin-bottom: 7px; }
 
-        /* ─ category filter strip ─ */
+        /* â”€ category filter strip â”€ */
         .cat-strip { display: flex; gap: 4px; padding: 0 12px 8px; overflow-x: auto; flex-wrap: nowrap; }
         .cat-strip::-webkit-scrollbar { height: 0; }
       `}</style>
 
-      {/* ══════════════════════════════════════════════════
+      {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
           TOP NAV BAR
-      ══════════════════════════════════════════════════ */}
+      â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
       <div className="topbar">
         {/* hamburger + logo */}
         <button className="btn ghost" style={{ padding: "4px 5px" }} onClick={() => setSidebarOpen(v => !v)}>
@@ -1622,15 +1622,15 @@ export default function Home() {
             <input
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
-              placeholder="Search emails, contacts, AI actions…"
+              placeholder="Search emails, contacts, AI actionsâ€¦"
               style={{ width: '100%' }}
             />
           </div>
           <button className="btn" onClick={() => { setAppView("inbox"); setActiveFolder("calendar"); }} style={{ flexShrink: 0, padding: "7px 14px", fontSize: 13, background: "#F5F3FF", borderColor: "#DDD6FE", fontWeight: 700, borderRadius: 8 }}>
-            📅 Calendar
+            ðŸ“… Calendar
           </button>
           <button className="btn" onClick={() => { setAppView("inbox"); setActiveFolder("team"); }} style={{ flexShrink: 0, padding: "7px 14px", fontSize: 13, background: "#F5F3FF", borderColor: "#DDD6FE", fontWeight: 700, borderRadius: 8 }}>
-            👥 Team
+            ðŸ‘¥ Team
           </button>
         </div>
 
@@ -1661,7 +1661,7 @@ export default function Home() {
               </div>
               {newMails.length === 0 ? (
                 <div style={{ padding: "9px 3px", color: "#A78BFA", fontSize: 11.5, textAlign: "center" }}>
-                  All caught up ✨
+                  All caught up âœ¨
                 </div>
               ) : newMails.slice(0, 6).map((m) => (
                 <div
@@ -1701,12 +1701,12 @@ export default function Home() {
         </div>
       </div>
 
-      {/* ══════════════════════════════════════════════════
+      {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
           MAIN LAYOUT  (offset 50px for fixed topbar)
-      ══════════════════════════════════════════════════ */}
+      â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
       <div style={{ display: "flex", height: "100vh", paddingTop: 50, overflow: "hidden" }}>
 
-        {/* ══ LEFT SIDEBAR ══ */}
+        {/* â•â• LEFT SIDEBAR â•â• */}
         <div
           className="sb"
           style={{ width: sidebarOpen ? 200 : 0, minWidth: sidebarOpen ? 200 : 0 }}
@@ -1744,9 +1744,9 @@ export default function Home() {
           ))}
 
           <div className="sb-lbl" style={{ marginTop: 5 }}>Workspace</div>
-          <div className={`sb-item${activeFolder === "calendar" ? " on" : ""}`} onClick={() => { setAppView("inbox"); setActiveFolder("calendar"); setSidebarOpen(false); }}><span style={{ fontSize: "14px", marginRight: "4px" }}>📅</span><span style={{ flex: 1 }}>Calendar</span></div>
-          <div className={`sb-item${activeFolder === "team" ? " on" : ""}`} onClick={() => { setAppView("inbox"); setActiveFolder("team"); setSidebarOpen(false); }}><span style={{ fontSize: "14px", marginRight: "4px" }}>👥</span><span style={{ flex: 1 }}>Team Collab</span></div>
-          <div className={`sb-item${activeFolder === "analytics" ? " on" : ""}`} onClick={() => { setAppView("inbox"); setActiveFolder("analytics"); setSidebarOpen(false); }}><span style={{ fontSize: "14px", marginRight: "4px" }}>📊</span><span style={{ flex: 1 }}>Analytics</span></div>
+          <div className={`sb-item${activeFolder === "calendar" ? " on" : ""}`} onClick={() => { setAppView("inbox"); setActiveFolder("calendar"); setSidebarOpen(false); }}><span style={{ fontSize: "14px", marginRight: "4px" }}>ðŸ“…</span><span style={{ flex: 1 }}>Calendar</span></div>
+          <div className={`sb-item${activeFolder === "team" ? " on" : ""}`} onClick={() => { setAppView("inbox"); setActiveFolder("team"); setSidebarOpen(false); }}><span style={{ fontSize: "14px", marginRight: "4px" }}>ðŸ‘¥</span><span style={{ flex: 1 }}>Team Collab</span></div>
+          <div className={`sb-item${activeFolder === "analytics" ? " on" : ""}`} onClick={() => { setAppView("inbox"); setActiveFolder("analytics"); setSidebarOpen(false); }}><span style={{ fontSize: "14px", marginRight: "4px" }}>ðŸ“Š</span><span style={{ flex: 1 }}>Analytics</span></div>
 
           <div className="sb-lbl" style={{ marginTop: 5 }}>Categories</div>
           {categoryNav.map(cat => (
@@ -1773,7 +1773,7 @@ export default function Home() {
           </div>
         </div>
 
-        {/* ══ CENTRE: list + detail ══ */}
+        {/* â•â• CENTRE: list + detail â•â• */}
         <div style={{ flex: 1, display: "flex", overflow: "hidden", background: activeFolder === "analytics" ? "#1c1535" : "#FAF8FF" }}>
 
           {activeFolder === "calendar" ? (
@@ -1790,7 +1790,7 @@ export default function Home() {
              </div>
           ) : (
             <>
-          {/* ════ EMAIL LIST ════ */}
+          {/* â•â•â•â• EMAIL LIST â•â•â•â• */}
           <div style={{
             display: selectedMail ? "none" : "flex", flexGrow: 1, flexShrink: 0, flexBasis: "auto",
             borderRight: "1px solid #EDE9FE",
@@ -1798,7 +1798,7 @@ export default function Home() {
             background: "#fff", overflow: "hidden",
           }}>
 
-            {/* ── ELITE TRIAGE BANNER ── */}
+            {/* â”€â”€ ELITE TRIAGE BANNER â”€â”€ */}
             {activeFolder === "inbox" && (
               <div style={{ 
                 position: "relative", padding: "26px 30px", overflow: "hidden",
@@ -1844,8 +1844,8 @@ export default function Home() {
                     display: "flex", alignItems: "center", justifyContent: "space-between",
                     transition: "all 0.2s"
                   }}>
-                    <span style={{ fontSize: 12, fontWeight: 700, color: "#C4B5FD", letterSpacing: "0.02em" }}>📊 Triage results minimized</span>
-                    <span style={{ fontSize: 11, color: "#A78BFA", fontWeight: 600 }}>▼ Expand</span>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: "#C4B5FD", letterSpacing: "0.02em" }}>ðŸ“Š Triage results minimized</span>
+                    <span style={{ fontSize: 11, color: "#A78BFA", fontWeight: 600 }}>â–¼ Expand</span>
                   </div>
                 ) : (
                   <div className="anim" style={{ 
@@ -1863,9 +1863,9 @@ export default function Home() {
                            <div style={{ position: "absolute", top: 3, left: 3, width: 10, height: 10, borderRadius: "50%", background: "#C4B5FD" }} />
                          </div>
                          <span style={{ fontSize: 13, fontWeight: 700, color: "#C4B5FD", letterSpacing: "0.02em" }}>
-                           {triageStep === 1 ? "Scanning your inbox…" 
-                           : triageStep === 2 ? "Identifying priorities & deadlines…" 
-                           : "Generating your executive briefing…"}
+                           {triageStep === 1 ? "Scanning your inboxâ€¦" 
+                           : triageStep === 2 ? "Identifying priorities & deadlinesâ€¦" 
+                           : "Generating your executive briefingâ€¦"}
                          </span>
                        </div>
                      )}
@@ -1873,7 +1873,7 @@ export default function Home() {
                      {/* Inbox Zero */}
                      {triageResultBody === "inbox_zero" && (
                        <div style={{ textAlign: "center", padding: "20px 0" }}>
-                         <div style={{ fontSize: 32, marginBottom: 8 }}>🎉</div>
+                         <div style={{ fontSize: 32, marginBottom: 8 }}>ðŸŽ‰</div>
                          <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 18, color: "#E2E8F0", marginBottom: 6 }}>Inbox Zero!</div>
                          <div style={{ fontSize: 13, color: "#94A3B8" }}>You're all caught up. No urgent tasks or replies needed.</div>
                        </div>
@@ -1883,9 +1883,9 @@ export default function Home() {
                      {triageResultBody && typeof triageResultBody === "object" && triageResultBody.stats && (() => {
                        const { stats, items = [] } = triageResultBody;
                        const urgCfg = {
-                         urgent:       { color: "#EF4444", bg: "rgba(239,68,68,0.12)", border: "rgba(239,68,68,0.25)", label: "ACT NOW", icon: "🔴" },
-                         reply_needed: { color: "#F59E0B", bg: "rgba(245,158,11,0.12)", border: "rgba(245,158,11,0.25)", label: "REPLY NEEDED", icon: "🟡" },
-                         fyi:          { color: "#22C55E", bg: "rgba(34,197,94,0.10)",  border: "rgba(34,197,94,0.20)",  label: "FYI", icon: "🟢" },
+                         urgent:       { color: "#EF4444", bg: "rgba(239,68,68,0.12)", border: "rgba(239,68,68,0.25)", label: "ACT NOW", icon: "ðŸ”´" },
+                         reply_needed: { color: "#F59E0B", bg: "rgba(245,158,11,0.12)", border: "rgba(245,158,11,0.25)", label: "REPLY NEEDED", icon: "ðŸŸ¡" },
+                         fyi:          { color: "#22C55E", bg: "rgba(34,197,94,0.10)",  border: "rgba(34,197,94,0.20)",  label: "FYI", icon: "ðŸŸ¢" },
                        };
                        const findTriageEmail = (item) => filteredEmails.find(m => {
                          const f = (m.from || "").toLowerCase();
@@ -1949,7 +1949,7 @@ export default function Home() {
                                          )}
                                        </div>
                                        {matchedMail && (
-                                         <div style={{ flexShrink: 0, fontSize: 11, color: cfg.color, fontWeight: 700, opacity: 0.7 }}>Open →</div>
+                                         <div style={{ flexShrink: 0, fontSize: 11, color: cfg.color, fontWeight: 700, opacity: 0.7 }}>Open â†’</div>
                                        )}
                                      </div>
                                    );
@@ -1970,10 +1970,10 @@ export default function Home() {
                      {!triageLoading && triageResultBody && (
                         <div style={{ marginTop: 16, display: "flex", justifyContent: "flex-end", gap: 8, borderTop: "1px solid rgba(255,255,255,0.05)", paddingTop: 16 }}>
                            <button className="btn" onClick={runInboxTriage} style={{ background: "rgba(139,92,246,0.15)", color: "#A78BFA", border: "1px solid rgba(139,92,246,0.25)", fontSize: 12, padding: "6px 14px", borderRadius: 8 }}>
-                             ↻ Re-run
+                             â†» Re-run
                            </button>
                            <button className="btn" onClick={() => setTriageCollapsed(true)} style={{ background: "rgba(255,255,255,0.05)", color: "#94A3B8", border: "1px solid rgba(255,255,255,0.1)", fontSize: 12, padding: "6px 14px", borderRadius: 8 }}>
-                             ▲ Collapse
+                             â–² Collapse
                            </button>
                            <button className="btn" onClick={() => { setTriageResultBody(null); setTriageCollapsed(false); }} style={{ background: "rgba(255,255,255,0.05)", color: "#94A3B8", border: "1px solid rgba(255,255,255,0.1)", fontSize: 12, padding: "6px 14px", borderRadius: 8 }}>
                              Dismiss
@@ -2031,8 +2031,8 @@ export default function Home() {
                 const isSpam = isSpamEmail(mail);
                 const isNew = isFirstTimeSender(mail, emails);
                 const initials = getInitials(mail.from || "");
-                const catIcons = { "Do Now": "◈", "Needs Decision": "◨", "Waiting": "◴", "Low Energy": "⬚" };
-                const catIcon = catIcons[cat] || "❖";
+                const catIcons = { "Do Now": "â—ˆ", "Needs Decision": "â—¨", "Waiting": "â—´", "Low Energy": "â¬š" };
+                const catIcon = catIcons[cat] || "â–";
                 const tone = getToneInfo(mail);
                 const phishing = getPhishingInfo(mail);
 
@@ -2077,9 +2077,9 @@ export default function Home() {
                             color: "#FEF2F2", fontWeight: 800, border: "1px solid #EF444460",
                             whiteSpace: "nowrap", padding: "4px 10px", fontSize: 10,
                             letterSpacing: "0.04em", textTransform: "uppercase"
-                          }}>🚨 Phishing Risk · {phishing.score}</span>
+                          }}>ðŸš¨ Phishing Risk Â· {phishing.score}</span>
                         ) : isSpam ? (
-                          <span className="pill" style={{ background: "#FEF2F2", color: "#B91C1C", fontWeight: 700, border: "1px solid #B91C1C30", whiteSpace: "nowrap", padding: "4px 10px" }}>✕ Spam</span>
+                          <span className="pill" style={{ background: "#FEF2F2", color: "#B91C1C", fontWeight: 700, border: "1px solid #B91C1C30", whiteSpace: "nowrap", padding: "4px 10px" }}>âœ• Spam</span>
                         ) : (
                           <>
                             <span className="pill" style={{ background: "transparent", color: catColor, whiteSpace: "nowrap", fontWeight: 600, border: `1px solid ${catColor}40`, padding: "4px 8px", fontSize: 10 }}>
@@ -2097,7 +2097,7 @@ export default function Home() {
                     <div style={{ flex: 1, display: "flex", alignItems: "center", minWidth: 0, overflow: "hidden" }}>
                       <div style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                         <span style={{ fontSize: 13, fontWeight: isNew ? 700 : 500, color: "#1E293B", marginRight: 8 }}>{mail.subject}</span>
-                        <span style={{ fontSize: 13, color: "#64748B", fontWeight: 400 }}>— {mail.snippet}</span>
+                        <span style={{ fontSize: 13, color: "#64748B", fontWeight: 400 }}>â€” {mail.snippet}</span>
                       </div>
                     </div>
 
@@ -2124,14 +2124,14 @@ export default function Home() {
                       fontFamily: "'DM Sans',sans-serif",
                     }}
                   >
-                    {loading ? "Loading…" : "Load more"}
+                    {loading ? "Loadingâ€¦" : "Load more"}
                   </button>
                 </div>
               )}
             </div>
           </div>
 
-          {/* ════ EMAIL DETAIL ════ */}
+          {/* â•â•â•â• EMAIL DETAIL â•â•â•â• */}
           {selectedMail && (
             <div style={{ flex: 1, overflowY: "auto", background: "#FAF8FF", padding: "14px 18px", display: "flex", flexDirection: "column" }}>
               <button 
@@ -2143,11 +2143,11 @@ export default function Home() {
                   transition: "all 0.2s"
                 }}
               >
-                ← Back to Inbox
+                â† Back to Inbox
               </button>
               <Fragment>
 
-                {/* ── ELITE PHISHING ALERT BANNER ── */}
+                {/* â”€â”€ ELITE PHISHING ALERT BANNER â”€â”€ */}
                 {(() => {
                   const ph = getPhishingInfo(selectedMail);
                   if (!ph.isPhishing || safeIds.includes(selectedMail.id)) return null;
@@ -2179,7 +2179,7 @@ export default function Home() {
                           <div style={{ position: "relative", width: 44, height: 44, flexShrink: 0 }}>
                             <div style={{ position: "absolute", inset: 0, borderRadius: "50%", background: isHigh ? "rgba(239,68,68,0.2)" : "rgba(245,158,11,0.2)", animation: "threat-glow 1.6s ease-in-out infinite" }} />
                             <div style={{ position: "absolute", inset: 6, borderRadius: "50%", background: isHigh ? "#DC2626" : "#D97706", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>
-                              {isHigh ? "🚨" : "⚠️"}
+                              {isHigh ? "ðŸš¨" : "âš ï¸"}
                             </div>
                           </div>
                           <div>
@@ -2187,7 +2187,7 @@ export default function Home() {
                               {isHigh ? "PHISHING ALERT" : "SUSPICIOUS EMAIL"}
                             </div>
                             <div style={{ fontSize: 11.5, color: isHigh ? "#FCA5A5" : "#FCD34D", marginTop: 4, fontWeight: 500 }}>
-                              Do not click links • Do not share credentials • Do not reply
+                              Do not click links â€¢ Do not share credentials â€¢ Do not reply
                             </div>
                           </div>
                         </div>
@@ -2223,7 +2223,7 @@ export default function Home() {
                               border: `1px solid ${isHigh ? "rgba(239,68,68,0.25)" : "rgba(245,158,11,0.25)"}`,
                               display: "flex", alignItems: "center", gap: 5
                             }}>
-                              <span style={{ fontSize: 9 }}>⚑</span> {r}
+                              <span style={{ fontSize: 9 }}>âš‘</span> {r}
                             </span>
                           ))}
                         </div>
@@ -2235,7 +2235,7 @@ export default function Home() {
                         <div style={{ fontSize: 10, fontWeight: 800, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>How to Stay Safe</div>
                         {['Never click links from unknown senders', 'Check sender email address carefully for typos', 'Legitimate companies never ask for passwords via email', 'When in doubt, contact the company directly'].map((tip) => (
                           <div key={tip} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 5 }}>
-                            <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.3)' }}>{'●'}</span>
+                            <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.3)' }}>{'â—'}</span>
                             <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)', lineHeight: 1.4 }}>{tip}</span>
                           </div>
                         ))}
@@ -2248,7 +2248,7 @@ export default function Home() {
                           color: "rgba(255,255,255,0.65)", fontSize: 11.5, fontWeight: 700,
                           padding: "7px 14px", borderRadius: 8, cursor: "pointer", letterSpacing: "0.02em"
                         }}>
-                          ✓ Mark as Safe
+                          âœ“ Mark as Safe
                         </button>
                         <button onClick={() => { setReportedIds(prev => [...prev, selectedMail.id]); setSelectedMail(null); }} style={{
                           background: isHigh ? "#DC2626" : "#D97706",
@@ -2257,14 +2257,14 @@ export default function Home() {
                           padding: "7px 16px", borderRadius: 8, cursor: "pointer",
                           boxShadow: `0 2px 10px ${isHigh ? "rgba(220,38,38,0.4)" : "rgba(217,119,6,0.4)"}`
                         }}>
-                          🚩 Report & Remove
+                          ðŸš© Report & Remove
                         </button>
                       </div>
                     </div>
                   );
                 })()}
 
-                {/* ── TONE BANNER ── */}
+                {/* â”€â”€ TONE BANNER â”€â”€ */}
                 <div className="anim" style={{
                   background: `linear-gradient(135deg, ${getToneInfo(selectedMail).bg}, #fff)`,
                   border: `1px solid ${getToneInfo(selectedMail).color}40`,
@@ -2274,11 +2274,11 @@ export default function Home() {
                 }}>
                   <div style={{ fontSize: 16 }}>{getToneInfo(selectedMail).icon}</div>
                   <div style={{ fontSize: 11.5, color: getToneInfo(selectedMail).color }}>
-                    <strong style={{ letterSpacing: "0.03em" }}>Tone: {getToneInfo(selectedMail).label}</strong> — <span>{getToneInfo(selectedMail).msg}</span>
+                    <strong style={{ letterSpacing: "0.03em" }}>Tone: {getToneInfo(selectedMail).label}</strong> â€” <span>{getToneInfo(selectedMail).msg}</span>
                   </div>
                 </div>
 
-                {/* ── EMAIL HEADER ── */}
+                {/* â”€â”€ EMAIL HEADER â”€â”€ */}
                 <div style={{ marginBottom: 24, padding: "0 8px" }}>
                   <h1 style={{ fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 24, color: "#0F172A", lineHeight: 1.3, marginBottom: 14 }}>
                     {selectedMail.subject}
@@ -2302,19 +2302,19 @@ export default function Home() {
                   </div>
                 </div>
 
-                {/* ── FULL EMAIL CONTENT (MOVED UP FOR IMMEDIATE READING) ── */}
+                {/* â”€â”€ FULL EMAIL CONTENT (MOVED UP FOR IMMEDIATE READING) â”€â”€ */}
                 <div style={{ padding: "0 8px", marginBottom: 32 }}>
                   <iframe
                     srcDoc={`<base target="_blank" />${selectedMail?.body || "<p style='font-family:sans-serif;color:#64748B;line-height:1.6;font-size:14px;padding:10px'>No content available</p>"}`}
                     style={{ width: "100%", height: 500, border: "none", background: "transparent" }}
                   />
-                  {/* ── INLINE TEAM ASSIGNMENT & NOTES ── */}
+                  {/* â”€â”€ INLINE TEAM ASSIGNMENT & NOTES â”€â”€ */}
                   <div style={{ marginTop: 16 }}>
                     <EmailTeamPanel emailId={selectedMail.id} onAssigned={() => { setActiveFolder("team"); setAppView("inbox"); }} />
                   </div>
                 </div>
 
-                {/* ── SCASI AI COPILOT TOOLBAR ── */}
+                {/* â”€â”€ SCASI AI COPILOT TOOLBAR â”€â”€ */}
                 <div className="anim" style={{ 
                   background: "#0F172A", borderRadius: 16, padding: "12px 16px", marginBottom: 24, 
                   boxShadow: "0 12px 32px rgba(15,23,42,0.25)", display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", 
@@ -2329,17 +2329,17 @@ export default function Home() {
                      <Ico.Zap /> {loadingHandleForMe ? "Auto-Handling..." : "Auto-Handle"}
                    </button>
                    <button className="btn" onClick={() => generateSummary(selectedMail)} style={{ background: "#1E293B", color: "#F8FAFC", border: "1px solid #334155", fontWeight: 600 }}>
-                     📝 Summarize
+                     ðŸ“ Summarize
                    </button>
                    <button className="btn" onClick={() => generateExplanation(selectedMail)} style={{ background: "#1E293B", color: "#F8FAFC", border: "1px solid #334155", fontWeight: 600 }}>
-                     🔍 Explain Priority
+                     ðŸ” Explain Priority
                    </button>
                    <button className="btn" onClick={generateReply} style={{ background: "#1E293B", color: "#F8FAFC", border: "1px solid #334155", fontWeight: 600 }}>
-                     ✍️ Smart Reply
+                     âœï¸ Smart Reply
                    </button>
                 </div>
 
-                {/* ── DEADLINE ALERT ── */}
+                {/* â”€â”€ DEADLINE ALERT â”€â”€ */}
                 {deadline && (
                   <div className="anim" style={{
                     background: "linear-gradient(135deg,#FFFBEB,#FEF3C7)",
@@ -2349,12 +2349,12 @@ export default function Home() {
                   }}>
                     <Ico.Info />
                     <div style={{ fontSize: 11.5, color: "#92400E" }}>
-                      <strong>Deadline Detected:</strong>&ensp;{deadline}&ensp;·&ensp;Urgency:&ensp;<strong>{urgency}</strong>
+                      <strong>Deadline Detected:</strong>&ensp;{deadline}&ensp;Â·&ensp;Urgency:&ensp;<strong>{urgency}</strong>
                     </div>
                   </div>
                 )}
 
-                {/* ── HANDLE FOR ME RESULT ── */}
+                {/* â”€â”€ HANDLE FOR ME RESULT â”€â”€ */}
                 {(handleForMeResult || loadingHandleForMe) && (
                   <div className="anim" style={{ 
                     background: "#FFF", borderRadius: 14, padding: "22px", marginBottom: 24, 
@@ -2364,7 +2364,7 @@ export default function Home() {
                       <Ico.Zap /> AUTO-HANDLE RESULT
                     </div>
 
-                    {/* Loading state — honest, no fake steps */}
+                    {/* Loading state â€” honest, no fake steps */}
                     {loadingHandleForMe && (
                       <div style={{
                         background: "linear-gradient(135deg, #F8FAFC, #EFF6FF)", borderRadius: 10, padding: "20px",
@@ -2375,7 +2375,7 @@ export default function Home() {
                         </div>
                         <div>
                           <div style={{ fontSize: 13, fontWeight: 700, color: "#1D4ED8" }}>
-                            Analyzing email & drafting response…
+                            Analyzing email & drafting responseâ€¦
                           </div>
                           <div style={{ fontSize: 11, color: "#64748B", marginTop: 3 }}>
                             Classifying, summarizing, extracting tasks, and composing a reply
@@ -2384,7 +2384,7 @@ export default function Home() {
                       </div>
                     )}
 
-                    {/* Structured result card — shown when hfmData is available */}
+                    {/* Structured result card â€” shown when hfmData is available */}
                     {!loadingHandleForMe && hfmData && (hfmData.category || hfmData.summary || hfmData.tasks?.length > 0) && (
                       <>
                         {/* Row 1: Category badge + Priority bar */}
@@ -2414,7 +2414,7 @@ export default function Home() {
                           )}
                           {hfmData.deadline && (
                             <span style={{ fontSize: 10.5, fontWeight: 600, color: "#92400E", background: "#FFFBEB", padding: "3px 8px", borderRadius: 5, border: "1px solid #FDE68A" }}>
-                              ⏰ {hfmData.deadline}
+                              â° {hfmData.deadline}
                             </span>
                           )}
                         </div>
@@ -2444,7 +2444,7 @@ export default function Home() {
                         {/* Follow-up indicator */}
                         {hfmData.followUp && (
                           <div style={{ fontSize: 11, color: "#7C3AED", background: "#F5F3FF", padding: "6px 10px", borderRadius: 6, marginBottom: 14, border: "1px solid #EDE9FE", fontWeight: 600 }}>
-                            🔔 Follow-up tracked — "{hfmData.followUp}"
+                            ðŸ”” Follow-up tracked â€” "{hfmData.followUp}"
                           </div>
                         )}
 
@@ -2453,7 +2453,7 @@ export default function Home() {
 
                         {/* Draft reply */}
                         <div style={{ fontSize: 10, fontWeight: 800, color: "#64748B", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8, display: "flex", alignItems: "center", gap: 5 }}>
-                          ✍️ Draft Reply <span style={{ fontWeight: 400, fontSize: 10, textTransform: "none", letterSpacing: 0 }}>(editable)</span>
+                          âœï¸ Draft Reply <span style={{ fontWeight: 400, fontSize: 10, textTransform: "none", letterSpacing: 0 }}>(editable)</span>
                         </div>
                         <textarea
                           value={handleForMeResult}
@@ -2472,7 +2472,7 @@ export default function Home() {
                         <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", alignItems: "center" }}>
                           {replySent ? (
                             <span style={{ fontSize: 13, color: "#16A34A", fontWeight: 700, padding: "5px 0" }}>
-                              ✅ Reply sent successfully
+                              âœ… Reply sent successfully
                             </span>
                           ) : (
                             <button
@@ -2503,7 +2503,7 @@ export default function Home() {
                     {!loadingHandleForMe && handleForMeResult && (!hfmData || (!hfmData.category && !hfmData.summary && (!hfmData.tasks || hfmData.tasks.length === 0))) && (
                       <>
                         <div style={{ fontSize: 10, fontWeight: 800, color: "#64748B", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8 }}>
-                          ✍️ AI Response <span style={{ fontWeight: 400, fontSize: 10, textTransform: "none", letterSpacing: 0 }}>(editable)</span>
+                          âœï¸ AI Response <span style={{ fontWeight: 400, fontSize: 10, textTransform: "none", letterSpacing: 0 }}>(editable)</span>
                         </div>
                         <textarea
                           value={handleForMeResult}
@@ -2522,7 +2522,7 @@ export default function Home() {
                         <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", alignItems: "center" }}>
                           {replySent ? (
                             <span style={{ fontSize: 13, color: "#16A34A", fontWeight: 700, padding: "5px 0" }}>
-                              ✅ Reply sent successfully
+                              âœ… Reply sent successfully
                             </span>
                           ) : (
                             <button className="btn" onClick={sendDraftReply} disabled={sendingReply}
@@ -2541,7 +2541,7 @@ export default function Home() {
                 )}
                 <style>{`@keyframes hfm-spin { to { transform: rotate(360deg); } }`}</style>
 
-                {/* ── PREMIUM INSIGHTS RENDER AREA ── */}
+                {/* â”€â”€ PREMIUM INSIGHTS RENDER AREA â”€â”€ */}
                 {(aiSummary || loadingAI || aiReason || aiReply || extractTasks(selectedMail?.snippet || selectedMail?.body || "").length > 0) && (
                   <div className="anim" style={{ marginBottom: 24, padding: "0 8px" }}>
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
@@ -2550,7 +2550,7 @@ export default function Home() {
                       <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
                         {(aiSummary || loadingAI || aiReason) && (
                           <div style={{ background: "#F8FAFC", border: "1px solid #E2E8F0", borderRadius: 12, padding: "16px 20px" }}>
-                            {loadingAI && <div style={{ fontSize: 13, color: "#64748B", fontStyle: "italic", animation: "pulse 2s infinite" }}>✨ Generating AI Insights...</div>}
+                            {loadingAI && <div style={{ fontSize: 13, color: "#64748B", fontStyle: "italic", animation: "pulse 2s infinite" }}>âœ¨ Generating AI Insights...</div>}
                             
                             {aiSummary && (
                               <div style={{ marginBottom: aiReason ? 16 : 0 }}>
@@ -2610,15 +2610,15 @@ export default function Home() {
                               onClick={async () => {
                                 if (!selectedMail) return alert("Select email first");
                                 const recipient = extractEmail(selectedMail.from);
-                                if (!recipient) { alert("❌ Cannot reply: No valid recipient email found"); return; }
+                                if (!recipient) { alert("âŒ Cannot reply: No valid recipient email found"); return; }
                                 const res = await fetch("/api/gmail/reply", {
                                   method: "POST",
                                   headers: { "Content-Type": "application/json" },
                                   body: JSON.stringify({ to: recipient, subject: selectedMail.subject, body: editableReply, threadId: selectedMail.threadId, originalMessageId: selectedMail.messageId }),
                                 });
-                                if (!res.ok) { alert(`❌ Reply failed: ${res.status}`); return; }
+                                if (!res.ok) { alert(`âŒ Reply failed: ${res.status}`); return; }
                                 const data = await res.json();
-                                alert(data.success ? "✅ Reply Sent Successfully!" : "❌ Error: " + data.error);
+                                alert(data.success ? "âœ… Reply Sent Successfully!" : "âŒ Error: " + data.error);
                               }}
                               style={{ background: "#7C3AED", color: "#fff", border: "none", fontWeight: 700 }}
                             >
@@ -2632,7 +2632,7 @@ export default function Home() {
                   </div>
                 )}
 
-                {/* ── LINK BUTTON ── */}
+                {/* â”€â”€ LINK BUTTON â”€â”€ */}
                 {extractFirstLink(selectedMail?.body || selectedMail?.snippet || "") && (
                   <div className="card anim" style={{ marginBottom: 8 }}>
                     <div className="card-ttl"><Ico.Link /> Email Link</div>
@@ -2653,7 +2653,7 @@ export default function Home() {
                   </div>
                 )}
 
-                {/* ── RELATED EMAILS ── */}
+                {/* â”€â”€ RELATED EMAILS â”€â”€ */}
                 <div className="card anim" style={{ marginBottom: 8 }}>
                   <div className="card-ttl"><Ico.Inbox /> Related Emails</div>
                   {emails
@@ -2672,7 +2672,7 @@ export default function Home() {
                         onMouseOver={e => (e.currentTarget.style.background = "#EDE9FE")}
                         onMouseOut={e => (e.currentTarget.style.background = "#F5F3FF")}
                       >
-                        · {m.subject}
+                        Â· {m.subject}
                       </div>
                     ))
                   }
@@ -2683,7 +2683,7 @@ export default function Home() {
 
                 {/* (Email Content has been moved above the Copilot Toolbar for optimal reading UX) */}
 
-                {/* ── ATTACHMENTS ── */}
+                {/* â”€â”€ ATTACHMENTS â”€â”€ */}
                 {selectedMail?.attachments?.length > 0 && (
                   <div className="card anim" style={{ marginBottom: 8 }}>
                     <div className="card-ttl">
@@ -2699,7 +2699,7 @@ export default function Home() {
                         }}
                       >
                         <div>
-                          <div style={{ fontWeight: 600, fontSize: 11.5, color: "#18103A" }}>📎 {file.filename}</div>
+                          <div style={{ fontWeight: 600, fontSize: 11.5, color: "#18103A" }}>ðŸ“Ž {file.filename}</div>
                           <div style={{ fontSize: 10, color: "#A78BFA", marginTop: 1 }}>{file.mimeType}</div>
                         </div>
                         <div style={{ display: "flex", gap: 5 }}>
@@ -2724,13 +2724,13 @@ export default function Home() {
                   </div>
                 )}
 
-                {/* ── ATTACHMENT PREVIEW MODAL ── */}
+                {/* â”€â”€ ATTACHMENT PREVIEW MODAL â”€â”€ */}
                 {hoverFile && (
                   <div className="overlay" onClick={() => setHoverFile(null)}>
                     <div className="modal anim" onClick={e => e.stopPropagation()} style={{ width: 520 }}>
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
                         <div className="modal-ttl" style={{ margin: 0 }}>Preview: {hoverFile.filename}</div>
-                        <button className="btn red" onClick={() => setHoverFile(null)} style={{ fontSize: 10.5 }}>✕ Close</button>
+                        <button className="btn red" onClick={() => setHoverFile(null)} style={{ fontSize: 10.5 }}>âœ• Close</button>
                       </div>
                       {hoverFile.mimeType.startsWith("image/") && (
                         /* eslint-disable-next-line @next/next/no-img-element */
@@ -2763,9 +2763,9 @@ export default function Home() {
         </div>
       </div>
 
-      {/* ══════════════════════════════════════════════════
-          COMPOSE MODAL — powered by ComposeWithAI
-      ══════════════════════════════════════════════════ */}
+      {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+          COMPOSE MODAL â€” powered by ComposeWithAI
+      â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
       {showCompose && (
         <ComposeWithAI
           emails={emails}
@@ -2774,9 +2774,9 @@ export default function Home() {
         />
       )}
 
-      {/* ══════════════════════════════════════════════════
+      {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
           AI FEATURE MODALS
-      ══════════════════════════════════════════════════ */}
+      â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
       {showBurnoutModal && (
         <div className="overlay" onClick={() => setShowBurnoutModal(false)}>
           <div className="modal anim" onClick={e => e.stopPropagation()}>
@@ -2833,9 +2833,9 @@ export default function Home() {
         </div>
       )}
 
-      {/* ══════════════════════════════════════════════════
+      {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
           GEMINI / ASK AI MODAL
-      ══════════════════════════════════════════════════ */}
+      â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
       {showGemini && (
         <div className="overlay" onClick={() => setShowGemini(false)}>
           <div onClick={e => e.stopPropagation()}>
