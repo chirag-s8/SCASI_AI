@@ -90,8 +90,11 @@ export function useVoiceController(options: VoiceControllerOptions = {}): VoiceC
   const cbStateChange   = useRef(options.onStateChange);
   const cbError         = useRef(options.onError);
   const cbCompose       = useRef(options.onCompose);
+  const cbReadAloud     = useRef(options.onReadAloud);
   const sessionIdRef    = useRef(options.sessionId);
   const emailContextRef = useRef(options.emailContext);
+  // Stores the pending draft so processTranscript can intercept "read aloud" responses
+  const pendingDraftRef = useRef<Record<string, string> | null>(null);
 
   useEffect(() => {
     cbTranscript.current    = options.onTranscript;
@@ -99,6 +102,7 @@ export function useVoiceController(options: VoiceControllerOptions = {}): VoiceC
     cbStateChange.current   = options.onStateChange;
     cbError.current         = options.onError;
     cbCompose.current       = options.onCompose;
+    cbReadAloud.current     = options.onReadAloud;
     sessionIdRef.current    = options.sessionId;
     emailContextRef.current = options.emailContext;
   });
@@ -191,6 +195,51 @@ export function useVoiceController(options: VoiceControllerOptions = {}): VoiceC
 
     setVoiceState('processing');
 
+    // Check if user is responding to a pending draft prompt
+    const pendingDraft = pendingDraftRef.current;
+    if (pendingDraft) {
+      const lower = text.toLowerCase().trim().replace(/[.,!?;:]+$/, '');
+      const isReadAloud = ['read','read aloud','read it','read it out','read it aloud','read out',
+        'yes read','yes read it','yes please read','read the email','read it to me',
+        'yes','yeah','yep','sure','go ahead','please read','ok read','okay read',
+      ].some(p => lower === p || lower.includes(p));
+
+      const isViewCompose = ['view','show','compose','open','check','see','look',
+        'show compose','open compose','view compose','check compose',
+        'show draft','view draft','open draft','see draft',
+        'no','nope','not now','later','show me','let me see',
+        "i will check","ill check","i want to see","show it",
+      ].some(p => lower === p || lower.includes(p));
+
+      if (isReadAloud) {
+        const recipient = pendingDraft.recipientName || pendingDraft.to || 'the recipient';
+        const readMsg = `To: ${recipient}. Subject: ${pendingDraft.subject}. ${pendingDraft.body}`;
+        pendingDraftRef.current = null;
+        cbAnswer.current?.(readMsg, text);
+        setVoiceState('speaking');
+        await speak(readMsg);
+        if (!activeRef.current) return;
+        startListening();
+        return;
+      }
+
+      if (isViewCompose) {
+        const openMsg = 'Opening the compose window for you now.';
+        pendingDraftRef.current = null;
+        cbAnswer.current?.(openMsg, text);
+        setVoiceState('speaking');
+        await speak(openMsg);
+        if (!activeRef.current) return;
+        // Signal VoiceContext to open compose modal
+        cbReadAloud.current?.(openMsg);
+        startListening();
+        return;
+      }
+
+      // User said something else — clear pending draft and proceed normally
+      pendingDraftRef.current = null;
+    }
+
     try {
       const emailCtx = emailContextRef.current;
       const res = await fetch('/api/chat', {
@@ -265,6 +314,8 @@ export function useVoiceController(options: VoiceControllerOptions = {}): VoiceC
       // the "I have drafted... read aloud or open compose?" prompt
       if (composeData) {
         const draftPrompt = `I have drafted an email to ${composeData.recipientName || 'the recipient'} with subject "${composeData.subject}". Would you like me to read it aloud, or open the compose section?`;
+        // Store draft so next user response can be intercepted
+        pendingDraftRef.current = composeData;
         cbAnswer.current?.(draftPrompt, text);
         if (!activeRef.current) return;
         setVoiceState('speaking');

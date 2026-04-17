@@ -61,6 +61,11 @@ export interface VoiceControllerOptions {
     to?: string;
     cc?: string;
   }) => void;
+  /**
+   * Called when the user says "read it aloud" after a compose draft.
+   * The controller will speak the email and call this with the read text.
+   */
+  onReadAloud?: (text: string) => void;
 }
 
 export interface VoiceControllerReturn {

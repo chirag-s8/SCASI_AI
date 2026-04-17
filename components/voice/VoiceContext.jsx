@@ -2,6 +2,7 @@
 /**
  * @file components/voice/VoiceContext.jsx
  * Global voice context — handles compose-via-voice flow.
+ * The useVoiceController handles read-aloud/view-compose intercept internally.
  */
 
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
@@ -16,48 +17,18 @@ const MicButton = dynamic(() => import("./MicButton"), { ssr: false });
 
 const VoiceContext = createContext(null);
 
-// Phrases meaning "read it aloud"
-const READ_ALOUD = [
-  "read", "read aloud", "read it", "read it out", "read it aloud", "read out",
-  "yes read", "yes read it", "yes please read", "read the email", "read it to me",
-  "yes", "yeah", "yep", "sure", "go ahead", "please read", "ok read", "okay read",
-];
-
-// Phrases meaning "show compose / view draft"
-const VIEW_COMPOSE = [
-  "view", "show", "compose", "open", "check", "see", "look",
-  "show compose", "open compose", "view compose", "check compose",
-  "show draft", "view draft", "open draft", "see draft",
-  "no", "nope", "not now", "later", "show me", "let me see",
-  "i will check", "ill check", "i want to see", "show it",
-];
-
-function matchesIntent(text, phrases) {
-  const lower = text.toLowerCase().trim().replace(/[.,!?;:]+$/, "");
-  return phrases.some((p) => lower === p || lower.includes(p));
-}
-
 export function VoiceProvider({ children }) {
   const { data: session, status } = useSession();
   const [voiceTranscript, setVoiceTranscript] = useState("");
   const [voiceMessages, setVoiceMessages] = useState([]);
 
-  // Pending draft — set when AI composes an email
-  const [pendingDraft, setPendingDraft] = useState(null);
-  const pendingDraftRef = useRef(null);
-  useEffect(() => { pendingDraftRef.current = pendingDraft; }, [pendingDraft]);
-
   // Compose modal
   const [showCompose, setShowCompose] = useState(false);
   const [composeData, setComposeData] = useState(null);
+  const composeDataRef = useRef(null);
 
   const addVoiceMessage = useCallback((role, text) => {
     setVoiceMessages((prev) => [...prev, { role, text }]);
-  }, []);
-
-  const handleCompose = useCallback((data) => {
-    setPendingDraft(data);
-    pendingDraftRef.current = data;
   }, []);
 
   const { state: voiceState, startSession, stopSession, speakText, isSupported } =
@@ -65,30 +36,6 @@ export function VoiceProvider({ children }) {
       onTranscript: (text) => setVoiceTranscript(text),
       onAnswer: (answer, userText) => {
         setVoiceTranscript("");
-
-        const draft = pendingDraftRef.current;
-        if (draft) {
-          if (matchesIntent(userText, READ_ALOUD)) {
-            // Read the email aloud
-            addVoiceMessage("user", userText);
-            const readMsg = `To: ${draft.recipientName || draft.to || "the recipient"}. Subject: ${draft.subject}. ${draft.body}`;
-            addVoiceMessage("assistant", readMsg);
-            setPendingDraft(null);
-            pendingDraftRef.current = null;
-            return;
-          }
-          if (matchesIntent(userText, VIEW_COMPOSE)) {
-            // Open compose modal
-            addVoiceMessage("user", userText);
-            addVoiceMessage("assistant", "Opening the compose window for you now.");
-            setComposeData(draft);
-            setShowCompose(true);
-            setPendingDraft(null);
-            pendingDraftRef.current = null;
-            return;
-          }
-        }
-
         addVoiceMessage("user", userText);
         addVoiceMessage("assistant", answer);
       },
@@ -96,11 +43,20 @@ export function VoiceProvider({ children }) {
         if (s === "idle") {
           setVoiceTranscript("");
           setVoiceMessages([]);
-          setPendingDraft(null);
-          pendingDraftRef.current = null;
         }
       },
-      onCompose: handleCompose,
+      // Called when AI drafts an email — store it for compose modal
+      onCompose: (data) => {
+        setComposeData(data);
+        composeDataRef.current = data;
+      },
+      // Called when user says "show compose" / "view" after draft prompt
+      onReadAloud: () => {
+        // Open compose modal with stored draft data
+        if (composeDataRef.current) {
+          setShowCompose(true);
+        }
+      },
     });
 
   const isVoiceActive = voiceState !== "idle";
@@ -151,7 +107,7 @@ export function VoiceProvider({ children }) {
         />
       )}
 
-      {showCompose && (
+      {showCompose && composeData && (
         <ComposeWithAI
           emails={[]}
           session={session}
@@ -159,6 +115,7 @@ export function VoiceProvider({ children }) {
           onClose={() => {
             setShowCompose(false);
             setComposeData(null);
+            composeDataRef.current = null;
           }}
         />
       )}
