@@ -43,7 +43,12 @@ next-env.d.ts
 # turbo
 .turbo
 
-# generated artifacts
-changes.diff
-changes_utf8.diff
+# Generated artifacts — never commit these
+*.diff
 test_output.txt
+
+# IDE & tool configs — developer-specific
+.vscode/
+.mcp.json
+.kiro/hooks/
+.kiro/specs/

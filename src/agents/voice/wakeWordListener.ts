@@ -71,16 +71,16 @@ export class WakeWordListener {
     const Ctor = getSpeechRecognitionConstructor();
     if (!Ctor || !this.running || this.paused) return;
 
-    // Always create a fresh instance — reusing the same rec after onend causes
-    // silent failures in Chrome where the mic appears open but never fires onresult
     if (this.recognition) {
       try { this.recognition.abort(); } catch { /* ignore */ }
       this.recognition = null;
     }
 
     const rec = new Ctor();
-    rec.continuous = true;
-    rec.interimResults = true; // interim lets us catch the phrase faster
+    // Non-continuous: fires onend after each utterance — far more reliable
+    // than continuous mode which silently dies after ~60s in Chrome
+    rec.continuous = false;
+    rec.interimResults = true;
     rec.lang = 'en-US';
     rec.maxAlternatives = 3;
 
@@ -108,9 +108,10 @@ export class WakeWordListener {
     };
 
     rec.onend = () => {
-      // Restart with a fresh instance — never reuse the ended rec
+      this.recognition = null;
+      // Always restart immediately — this is the keep-alive loop
       if (this.running && !this.paused) {
-        setTimeout(() => this._createAndStart(), 300);
+        setTimeout(() => this._createAndStart(), 100);
       }
     };
 
@@ -120,7 +121,8 @@ export class WakeWordListener {
         this.running = false;
         return;
       }
-      // no-speech / aborted / network — restart fresh after a short delay
+      // aborted / no-speech — not real errors, onend will handle restart
+      if (event.error === 'aborted' || event.error === 'no-speech') return;
       if (this.running && !this.paused) {
         setTimeout(() => this._createAndStart(), 500);
       }
@@ -130,7 +132,6 @@ export class WakeWordListener {
       rec.start();
       this.recognition = rec;
     } catch {
-      // Failed to start — retry after delay
       setTimeout(() => { if (this.running && !this.paused) this._createAndStart(); }, 1000);
     }
   }
