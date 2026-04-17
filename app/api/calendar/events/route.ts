@@ -1,10 +1,14 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
+import { getServerSession, Session } from "next-auth";
 import { authOptions } from "../../auth/[...nextauth]/route";
 import { google } from "googleapis";
 
-function getCalendarClient(session: any) {
-  if (!session?.accessToken) throw new Error("Unauthorized");
+class CalendarAuthError extends Error {
+  constructor(message: string) { super(message); this.name = 'CalendarAuthError'; }
+}
+
+function getCalendarClient(session: Session | null) {
+  if (!session?.accessToken) throw new CalendarAuthError("Unauthorized — no access token");
   const auth = new google.auth.OAuth2();
   auth.setCredentials({ access_token: session.accessToken });
   return google.calendar({ version: "v3", auth });
@@ -16,8 +20,9 @@ export async function GET(req: Request) {
     const calendar = getCalendarClient(session);
 
     // Fetch last 1 month to next 6 months events
-    const timeMin = new Date();
-    timeMin.setMonth(timeMin.getMonth() - 1);
+    // Use first-of-previous-month to avoid 31st-day overflow (e.g. Mar 31 → Feb 31 → Mar 3)
+    const now = new Date();
+    const timeMin = new Date(now.getFullYear(), now.getMonth() - 1, 1);
     
     const response = await calendar.events.list({
       calendarId: "primary",
@@ -51,9 +56,18 @@ export async function GET(req: Request) {
     });
 
     return NextResponse.json({ events });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Unknown error";
     console.error("Calendar GET Error:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    // Map Google auth/config failures to meaningful status codes
+    const gerr = error as { code?: number; status?: number } | null;
+    if (gerr?.code === 401 || gerr?.status === 401 || error instanceof CalendarAuthError) {
+      return NextResponse.json({ error: message }, { status: 401 });
+    }
+    if (gerr?.code === 403 || gerr?.status === 403) {
+      return NextResponse.json({ error: message }, { status: 503 }); // upstream config/auth failure
+    }
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
 
@@ -81,7 +95,7 @@ export async function POST(req: Request) {
       // All day event format is YYYY-MM-DD
     }
 
-    const eventParams: any = {
+    const eventParams = {
       summary: title,
       description: description || "Created via Scasi-AI",
       start: time 
@@ -90,19 +104,16 @@ export async function POST(req: Request) {
       end: time 
         ? { dateTime: endDateTime!.toISOString() } 
         : { date: new Date(startDateTime.getTime() + 86400000).toISOString().split('T')[0] },
+      reminders: reminderMinutes
+        ? {
+            useDefault: false,
+            overrides: [
+              { method: 'popup' as const, minutes: reminderMinutes },
+              { method: 'email' as const, minutes: reminderMinutes }
+            ]
+          }
+        : { useDefault: true },
     };
-    
-    if (reminderMinutes) {
-      eventParams.reminders = {
-        useDefault: false,
-        overrides: [
-          { method: 'popup', minutes: reminderMinutes },
-          { method: 'email', minutes: reminderMinutes }
-        ]
-      };
-    } else {
-      eventParams.reminders = { useDefault: true };
-    }
 
     const res = await calendar.events.insert({
       calendarId: 'primary',
@@ -120,9 +131,18 @@ export async function POST(req: Request) {
     };
 
     return NextResponse.json({ event: newEvent });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Unknown error";
     console.error("Calendar POST error:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    // Map Google auth/config failures to meaningful status codes
+    const gerr = error as { code?: number; status?: number } | null;
+    if (gerr?.code === 401 || gerr?.status === 401 || error instanceof CalendarAuthError) {
+      return NextResponse.json({ error: message }, { status: 401 });
+    }
+    if (gerr?.code === 403 || gerr?.status === 403) {
+      return NextResponse.json({ error: message }, { status: 503 }); // upstream config/auth failure
+    }
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
 
@@ -142,8 +162,17 @@ export async function DELETE(req: Request) {
     });
     
     return NextResponse.json({ success: true });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Unknown error";
     console.error("Calendar DELETE error:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    // Map Google auth/config failures to meaningful status codes
+    const gerr = error as { code?: number; status?: number } | null;
+    if (gerr?.code === 401 || gerr?.status === 401 || error instanceof CalendarAuthError) {
+      return NextResponse.json({ error: message }, { status: 401 });
+    }
+    if (gerr?.code === 403 || gerr?.status === 403) {
+      return NextResponse.json({ error: message }, { status: 503 }); // upstream config/auth failure
+    }
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

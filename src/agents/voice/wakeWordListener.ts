@@ -7,15 +7,13 @@
 
 import type { WakeWordListenerOptions } from './voiceTypes';
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-function getSpeechRecognitionConstructor(): (new () => any) | null {
+function getSpeechRecognitionConstructor(): SpeechRecognitionConstructor | null {
   if (typeof window === 'undefined') return null;
-  const w = window as any;
-  return w.SpeechRecognition ?? w.webkitSpeechRecognition ?? null;
+  return window.SpeechRecognition ?? window.webkitSpeechRecognition ?? null;
 }
 
 export class WakeWordListener {
-  private recognition: any = null;
+  private recognition: SpeechRecognition | null = null;
   private readonly onDetected: () => void;
   private readonly wakePhrase: string;
   private running = false;
@@ -30,11 +28,7 @@ export class WakeWordListener {
   }
 
   start(): void {
-    if (!this.isSupported || this.running) {
-      console.log('[WakeWord] start() blocked — isSupported:', this.isSupported, 'running:', this.running);
-      return;
-    }
-    console.log('[WakeWord] listener starting...');
+    if (!this.isSupported || this.running) return;
     this.running = true;
     this._createAndStart();
     document.addEventListener('visibilitychange', this._onVisibilityChange);
@@ -90,11 +84,11 @@ export class WakeWordListener {
     rec.lang = 'en-US';
     rec.maxAlternatives = 3;
 
-    rec.onresult = (event: any) => {
+    rec.onresult = (event: SpeechRecognitionEvent) => {
       for (let i = event.resultIndex; i < event.results.length; i++) {
+        // Check both final and interim results for faster response
         for (let alt = 0; alt < event.results[i].length; alt++) {
           const transcript: string = event.results[i][alt].transcript.toLowerCase().trim();
-          console.log('[WakeWord] heard:', transcript);
           const isWake =
             transcript.includes(this.wakePhrase) ||
             transcript.includes('hey scasi') ||
@@ -104,18 +98,10 @@ export class WakeWordListener {
             transcript.includes('hey stacy') ||
             transcript.includes('hey kasey') ||
             transcript.includes('hey casey') ||
-            transcript.includes('hey spacey') ||
-            transcript.includes('face kaisi') ||
-            transcript.includes('chess kaisi') ||
-            transcript.includes('face kassi') ||
-            transcript.includes('hey kassi') ||
-            (transcript.includes('face') && transcript.includes('kaisi')) ||
-            (transcript.includes('hey') && transcript.includes('kaisi')) ||
-            transcript.includes('kaisi');
+            transcript.includes('hey spacey');
           if (isWake) {
-            console.log('[WakeWord] DETECTED — firing onDetected');
             this.onDetected();
-            return;
+            return; // fire once per detection
           }
         }
       }
@@ -129,10 +115,9 @@ export class WakeWordListener {
       }
     };
 
-    rec.onerror = (event: any) => {
+    rec.onerror = (event: SpeechRecognitionErrorEvent) => {
       console.log('[WakeWord] error:', event.error);
       if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
-        console.log('[WakeWord] mic permission denied — stopping');
         this.running = false;
         return;
       }

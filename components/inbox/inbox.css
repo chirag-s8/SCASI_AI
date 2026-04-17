@@ -1,0 +1,105 @@
+/* ─── Scasi Inbox Styles ────────────────────────────────────────── */
+/* Extracted from app/page.jsx during the inbox refactoring.         */
+/* All selectors scoped under .inbox-root to avoid affecting other pages. */
+/* Fonts loaded via next/font/google in layout.jsx → CSS variables --font-dm-sans and --font-syne */
+
+/* ─ global reset (scoped) ─ */
+.inbox-root *, .inbox-root *::before, .inbox-root *::after { box-sizing: border-box; margin: 0; padding: 0; }
+.inbox-root { height: 100vh; height: 100dvh; overflow: hidden; font-family: var(--font-dm-sans), 'DM Sans', sans-serif; background: #FAF8FF; color: #18103A; font-size: 12.5px; line-height: 1.5; }
+.inbox-root ::-webkit-scrollbar { width: 4px; height: 4px; }
+.inbox-root ::-webkit-scrollbar-track { background: transparent; }
+.inbox-root ::-webkit-scrollbar-thumb { background: #C4B5FD; border-radius: 99px; }
+.inbox-root ::-webkit-scrollbar-thumb:hover { background: #A78BFA; }
+
+/* ─ sidebar ─ */
+.inbox-root .sb { background: #170A35; height: 100%; display: flex; flex-direction: column; overflow: hidden; transition: width .22s cubic-bezier(.4,0,.2,1), min-width .22s cubic-bezier(.4,0,.2,1); border-right: 1px solid rgba(196,181,253,.08); }
+.inbox-root .sb-lbl { font-size: 9px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: rgba(167,139,250,.4); padding: 12px 14px 4px; white-space: nowrap; overflow: hidden; }
+.inbox-root .sb-item { display: flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 7px; margin: 1px 6px; cursor: pointer; font-size: 12px; font-weight: 500; color: #C4B5FD; white-space: nowrap; overflow: hidden; transition: background .14s, color .14s; position: relative; }
+.inbox-root .sb-item:hover { background: rgba(167,139,250,.12); color: #EDE9FE; }
+.inbox-root .sb-item.on { background: rgba(167,139,250,.18); color: #F5F3FF; font-weight: 600; }
+.inbox-root .sb-item.on::before { content:''; position: absolute; left: 0; top: 22%; bottom: 22%; width: 2px; background: #A78BFA; border-radius: 0 2px 2px 0; }
+.inbox-root .sb-item svg { flex-shrink: 0; opacity: .75; }
+.inbox-root .sb-badge { margin-left: auto; background: #7C3AED; color: #fff; border-radius: 99px; font-size: 8.5px; font-weight: 800; min-width: 15px; height: 15px; padding: 0 3px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+
+/* ─ topbar ─ */
+/* ─ main layout (below topbar) ─ */
+.inbox-root .main-layout { display: flex; height: calc(100vh - 50px); height: calc(100dvh - 50px); overflow: hidden; }
+
+.inbox-root .topbar { height: 50px; background: #fff; border-bottom: 1px solid #EDE9FE; display: flex; align-items: center; gap: 8px; padding: 0 14px; flex-shrink: 0; position: fixed; top: 0; left: 0; right: 0; z-index: 1000; box-shadow: 0 1px 0 #EDE9FE; }
+
+/* ─ search ─ */
+.inbox-root .srch { flex: 1; max-width: 380px; position: relative; }
+.inbox-root .srch input { width: 100%; padding: 6px 10px 6px 28px; border-radius: 7px; border: 1px solid #E2D9F3; background: #FAF8FF; font-size: 12px; font-family: var(--font-dm-sans), 'DM Sans', sans-serif; color: #18103A; outline: none; transition: border .14s; }
+.inbox-root .srch input:focus { border-color: #A78BFA; box-shadow: 0 0 0 2.5px rgba(167,139,250,.18); }
+.inbox-root .srch-ic { position: absolute; left: 9px; top: 50%; transform: translateY(-50%); color: #A78BFA; pointer-events: none; display: flex; }
+
+/* ─ buttons ─ */
+.inbox-root .btn { display: inline-flex; align-items: center; gap: 5px; padding: 5px 9px; border-radius: 7px; border: 1px solid #E2D9F3; background: #fff; color: #4C1D95; font-size: 11px; font-weight: 600; font-family: var(--font-dm-sans), 'DM Sans', sans-serif; cursor: pointer; transition: all .14s; white-space: nowrap; line-height: 1; }
+.inbox-root .btn:hover { background: #F5F3FF; border-color: #C4B5FD; color: #7C3AED; }
+.inbox-root .btn.pri { background: #7C3AED; border-color: #7C3AED; color: #fff; box-shadow: 0 2px 7px rgba(124,58,237,.28); }
+.inbox-root .btn.pri:hover { background: #5B21B6; border-color: #5B21B6; }
+.inbox-root .btn.red { background: #FEF2F2; border-color: #FECACA; color: #DC2626; }
+.inbox-root .btn.red:hover { background: #FEE2E2; }
+.inbox-root .btn.grn { background: #F0FDF4; border-color: #BBF7D0; color: #059669; }
+.inbox-root .btn.grn:hover { background: #DCFCE7; }
+.inbox-root .btn.amb { background: #FFFBEB; border-color: #FDE68A; color: #D97706; }
+.inbox-root .btn.amb:hover { background: #FEF3C7; }
+.inbox-root .btn.ghost { background: transparent; border-color: transparent; }
+.inbox-root .btn.ghost:hover { background: #F5F3FF; border-color: #EDE9FE; }
+
+/* ─ ai button ─ */
+.inbox-root .ai-btn { display: inline-flex; align-items: center; gap: 5px; padding: 6px 12px; border-radius: 7px; border: none; background: linear-gradient(135deg,#7C3AED 0%,#8B5CF6 100%); color: #fff; font-size: 11.5px; font-weight: 700; font-family: var(--font-dm-sans), 'DM Sans', sans-serif; cursor: pointer; box-shadow: 0 2px 9px rgba(124,58,237,.28); transition: all .17s; }
+.inbox-root .ai-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 13px rgba(124,58,237,.36); }
+.inbox-root .ai-btn:active { transform: none; }
+.inbox-root .ai-btn.sm { padding: 4px 9px; font-size: 10.5px; }
+
+/* ─ cards ─ */
+.inbox-root .card { background: #fff; border: 1px solid #EDE9FE; border-radius: 10px; padding: 12px 14px; }
+.inbox-root .card-pu { background: linear-gradient(135deg,#F5F3FF 0%,#EDE9FE 100%); border: 1px solid #DDD6FE; border-radius: 10px; padding: 12px 14px; }
+.inbox-root .card-ttl { font-size: 11px; font-weight: 700; color: #4C1D95; margin-bottom: 9px; display: flex; align-items: center; gap: 5px; letter-spacing: .01em; }
+
+/* ─ mail row ─ */
+.inbox-root .mail-row { padding: 8px 12px; border-bottom: 1px solid #F3F0FF; cursor: pointer; transition: background .1s; display: flex; align-items: flex-start; gap: 8px; }
+.inbox-root .mail-row:hover { background: #FAF8FF; }
+.inbox-root .mail-row.sel { background: #F0EBFF; border-left: 2.5px solid #7C3AED; }
+.inbox-root .mail-row:not(.sel) { border-left: 2.5px solid transparent; }
+
+/* ─ pill ─ */
+.inbox-root .pill { display: inline-flex; align-items: center; padding: 1.5px 6px; border-radius: 99px; font-size: 9.5px; font-weight: 700; }
+
+/* ─ inputs ─ */
+.inbox-root .inp { width: 100%; padding: 7px 10px; border-radius: 7px; border: 1px solid #E2D9F3; background: #FAF8FF; font-size: 12px; font-family: var(--font-dm-sans), 'DM Sans', sans-serif; color: #18103A; outline: none; transition: border .14s; }
+.inbox-root .inp:focus { border-color: #A78BFA; box-shadow: 0 0 0 2.5px rgba(167,139,250,.14); }
+
+/* ─ overlay + modal ─ */
+/* NOTE: .overlay and .modal use position:fixed. These styles apply correctly */
+/* as long as the elements remain descendants of .inbox-root in the DOM.   */
+/* If either is ever rendered via a React portal outside .inbox-root, these */
+/* styles will silently break. Do NOT use portals for these components.     */
+.inbox-root .overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(15,4,44,.65); backdrop-filter: blur(7px); display: flex; justify-content: center; align-items: center; z-index: 99999; }
+.inbox-root .modal { background: #fff; border-radius: 14px; padding: 20px 22px; box-shadow: 0 18px 52px rgba(124,58,237,.22); border: 1px solid #DDD6FE; width: 460px; max-width: 94vw; }
+.inbox-root .modal-ttl { font-family: var(--font-syne), 'Syne', sans-serif; font-size: 14px; font-weight: 800; color: #18103A; margin-bottom: 12px; }
+
+/* ─ notif dropdown ─ */
+.inbox-root .notif-dd { position: absolute; right: 0; top: 38px; width: 280px; background: #fff; border: 1px solid #DDD6FE; border-radius: 11px; box-shadow: 0 9px 28px rgba(124,58,237,.14); z-index: 9999; padding: 9px; }
+
+/* ─ priority bar ─ */
+.inbox-root .pbar { height: 2.5px; border-radius: 99px; background: #EDE9FE; overflow: hidden; }
+.inbox-root .pbar-fill { height: 100%; border-radius: 99px; }
+
+/* ─ animations (keyframes are global, class names are scoped) ─ */
+@keyframes inbox-sl { from { opacity:0; transform:translateY(5px); } to { opacity:1; transform:translateY(0); } }
+.inbox-root .anim { animation: inbox-sl .18s ease forwards; }
+@keyframes inbox-pu { 0%,100% { opacity:1; } 50% { opacity:.3; } }
+.inbox-root .pulse { animation: inbox-pu 2.2s infinite; }
+@keyframes inbox-threat-glow { 0%,100% { box-shadow: 0 0 0 0 rgba(239,68,68,0.7), 0 2px 8px rgba(239,68,68,0.3); } 50% { box-shadow: 0 0 0 4px rgba(239,68,68,0), 0 2px 8px rgba(239,68,68,0.5); } }
+@keyframes inbox-threat-shimmer { 0% { background-position: -200% center; } 100% { background-position: 200% center; } }
+.inbox-root .threat-badge { animation: inbox-threat-glow 1.6s ease-in-out infinite; }
+@keyframes inbox-hfm-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+/* ─ detail heading ─ */
+.inbox-root .d-hd { font-size: 10px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: #A78BFA; margin-bottom: 7px; }
+
+/* ─ category filter strip ─ */
+.inbox-root .cat-strip { display: flex; gap: 4px; padding: 0 12px 8px; overflow-x: auto; flex-wrap: nowrap; }
+.inbox-root .cat-strip::-webkit-scrollbar { height: 0; }

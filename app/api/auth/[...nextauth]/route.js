@@ -36,6 +36,7 @@ async function refreshGoogleAccessToken(token) {
 }
 
 
+/** @type {import('next-auth').NextAuthOptions} */
 export const authOptions = {
   providers: [
     GoogleProvider({
