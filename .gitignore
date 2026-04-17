@@ -42,3 +42,8 @@ next-env.d.ts
 
 # turbo
 .turbo
+
+# generated artifacts
+changes.diff
+changes_utf8.diff
+test_output.txt
