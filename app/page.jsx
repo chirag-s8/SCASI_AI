@@ -352,6 +352,7 @@ export default function Home() {
   // âœ… Toolbar Feature States
   const [showCompose, setShowCompose] = useState(false);
   const [showGemini, setShowGemini] = useState(false);
+  const [voiceComposeData, setVoiceComposeData] = useState(null);
 
   const [aiReply, setAiReply] = useState("");
   const [loadingReply, setLoadingReply] = useState(false);
@@ -2771,7 +2772,8 @@ export default function Home() {
         <ComposeWithAI
           emails={emails}
           session={session}
-          onClose={() => setShowCompose(false)}
+          prefillData={voiceComposeData}
+          onClose={() => { setShowCompose(false); setVoiceComposeData(null); }}
         />
       )}
 
@@ -2842,6 +2844,7 @@ export default function Home() {
           <div onClick={e => e.stopPropagation()}>
             <GeminiSidebar
               selectedMail={selectedMail}
+              onCompose={(data) => { setVoiceComposeData(data); setShowCompose(true); }}
               onSelectEmail={(id) => {
                 const mail = emails.find(e => e.id === id);
                 if (mail) { setSelectedMail(mail); setShowGemini(false); }

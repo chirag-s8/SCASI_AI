@@ -366,3 +366,86 @@ export async function replyTo(
 
     return { answer, trace };
 }
+
+// ---------------------------------------------------------------------------
+// Send Email: Parse intent → generate draft → return compose data
+// ---------------------------------------------------------------------------
+
+export interface SendEmailResult {
+    answer: string;
+    trace: AgentResult[];
+    composeData: {
+        prompt: string;
+        recipientName: string;
+        subject: string;
+        body: string;
+        to: string;
+        cc: string;
+    } | null;
+}
+
+export async function sendEmail(
+    ctx: AgentContext,
+    req: OrchestratorRequest,
+    signal?: AbortSignal
+): Promise<SendEmailResult> {
+    const trace: AgentResult[] = [];
+    const traceId = ctx.traceId as string;
+    const userMessage = req.userMessage;
+
+    const composeStart = Date.now();
+
+    try {
+        // Call the compose AI endpoint to generate draft from natural language
+        const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000';
+        const res = await fetch(`${baseUrl}/api/ai/compose`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                prompt: userMessage,
+                senderName: 'User',
+            }),
+            signal,
+        });
+
+        if (!res.ok) {
+            throw new Error(`Compose API error: ${res.status}`);
+        }
+
+        const data = await res.json();
+
+        trace.push({
+            agentName: 'email.compose',
+            completedAt: new Date().toISOString(),
+            durationMs: Date.now() - composeStart,
+            output: { recipientName: data.recipientName, subject: data.subject },
+        });
+
+        const composeData = {
+            prompt: userMessage,
+            recipientName: data.recipientName || '',
+            subject: data.subject || '',
+            body: data.body || '',
+            to: data.to || '',
+            cc: data.cc || '',
+        };
+
+        const answer = `I've drafted an email to ${data.recipientName || 'the recipient'} with the subject "${data.subject || 'your message'}". Opening the compose window for you to review and send.`;
+
+        return { answer, trace, composeData };
+    } catch (err: unknown) {
+        const errMsg = err instanceof Error ? err.message : String(err);
+        trace.push({
+            agentName: 'email.compose',
+            completedAt: new Date().toISOString(),
+            durationMs: Date.now() - composeStart,
+            output: { error: errMsg },
+        });
+
+        return {
+            answer: `I wasn't able to draft that email. ${errMsg}. Please try using the Compose button directly.`,
+            trace,
+            composeData: null,
+        };
+    }
+}

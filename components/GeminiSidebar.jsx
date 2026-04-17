@@ -77,7 +77,7 @@ const HANDLE_FOR_ME_STEPS = [
   { key: "done",                   label: "Ready" },
 ];
 
-function GeminiSidebar({ selectedMail, onSelectEmail }) {
+function GeminiSidebar({ selectedMail, onSelectEmail, onCompose }) {
     const [question, setQuestion] = useState("");
     const [reply, setReply] = useState("");
     const [loading, setLoading] = useState(false);
@@ -308,6 +308,20 @@ function GeminiSidebar({ selectedMail, onSelectEmail }) {
                                     `\n\n❌ Error: ${event.message}`
                             );
                             setStatus("Error");
+                            break;
+
+                        case "compose":
+                            // Trigger compose modal with pre-filled data
+                            if (onCompose) {
+                                onCompose({
+                                    prompt: event.prompt || '',
+                                    recipientName: event.recipientName || '',
+                                    subject: event.subject || '',
+                                    body: event.body || '',
+                                    to: event.to || '',
+                                    cc: event.cc || '',
+                                });
+                            }
                             break;
                     }
                 }

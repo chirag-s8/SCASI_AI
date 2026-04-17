@@ -18,7 +18,7 @@ import {
     OrchestratorRequestSchema,
     IntentSchema,
 } from './types';
-import { handleForMe, sortInbox, replyTo } from './workflows';
+import { handleForMe, sortInbox, replyTo, sendEmail } from './workflows';
 
 export * from './types';
 
@@ -95,11 +95,16 @@ Classify the user's request into one of these workflows:
   
 - reply_to: User wants to compose a reply to a specific person (extract their name as "target").
   Examples: "reply to John", "send a response to Sarah", "write back to the client", "respond to Mark's email"
+
+- send_email: User wants to compose and send a NEW email to someone (not a reply to an existing thread).
+  Examples: "send an email to Rahul", "write an email to John saying...", "email Sarah about the meeting", "send a message to the team", "compose an email to boss", "send mail to Priya that...", "write to manager about leave"
   
 - general: Everything else — single tasks like summarize, classify, explain, search, draft a standalone reply, answer questions about emails.
   Examples: "summarize this", "what does this email say", "is this urgent?", "draft a reply", "how many unread emails", "find emails from John", "what's in my inbox", "classify this email"
 
 CRITICAL RULES:
+- "Send an email to X" or "Write an email to X" → send_email
+- "Reply to X" or "Respond to X" → reply_to (existing thread)
 - "Summarize this email" → general (single task, not full pipeline)
 - "Draft a reply" → general (unless they also want classify + summarize + tasks)
 - "What does this say?" → general
@@ -200,6 +205,11 @@ export class OrchestratorAgent implements Agent<OrchestratorRequest, Orchestrato
             case 'reply_to':
                 result = await replyTo(ctx, validated, intent.target ?? 'unknown', signal);
                 break;
+            case 'send_email': {
+                const sendResult = await sendEmail(ctx, validated, signal);
+                result = { answer: sendResult.answer, trace: sendResult.trace };
+                break;
+            }
             default:
                 result = await this.reactLoop(ctx, validated, history, traceId);
                 break;
@@ -279,6 +289,27 @@ export class OrchestratorAgent implements Agent<OrchestratorRequest, Orchestrato
                 const result = await replyTo(ctx, validated, intent.target ?? 'unknown', signal);
                 for (const t of result.trace) {
                     yield { type: 'step', agentName: t.agentName, status: 'completed', durationMs: t.durationMs, output: t.output };
+                }
+                answer = result.answer;
+                break;
+            }
+            case 'send_email': {
+                yield { type: 'step', agentName: 'workflow.sendEmail', status: 'running' };
+                const result = await sendEmail(ctx, validated, signal);
+                for (const t of result.trace) {
+                    yield { type: 'step', agentName: t.agentName, status: 'completed', durationMs: t.durationMs, output: t.output };
+                }
+                // Emit compose event so the frontend opens the compose modal
+                if (result.composeData) {
+                    yield {
+                        type: 'compose',
+                        prompt: result.composeData.prompt,
+                        recipientName: result.composeData.recipientName,
+                        subject: result.composeData.subject,
+                        body: result.composeData.body,
+                        to: result.composeData.to,
+                        cc: result.composeData.cc,
+                    };
                 }
                 answer = result.answer;
                 break;

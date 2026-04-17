@@ -52,6 +52,15 @@ export interface VoiceControllerOptions {
   onAnswer?: (answer: string, userText: string) => void;
   onStateChange?: (state: VoiceState) => void;
   onError?: (error: VoiceError) => void;
+  /** Called when the AI wants to open the compose modal with pre-filled data */
+  onCompose?: (data: {
+    prompt: string;
+    recipientName?: string;
+    subject?: string;
+    body?: string;
+    to?: string;
+    cc?: string;
+  }) => void;
 }
 
 export interface VoiceControllerReturn {

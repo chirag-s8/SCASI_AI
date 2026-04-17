@@ -89,6 +89,7 @@ export function useVoiceController(options: VoiceControllerOptions = {}): VoiceC
   const cbAnswer        = useRef(options.onAnswer);
   const cbStateChange   = useRef(options.onStateChange);
   const cbError         = useRef(options.onError);
+  const cbCompose       = useRef(options.onCompose);
   const sessionIdRef    = useRef(options.sessionId);
   const emailContextRef = useRef(options.emailContext);
 
@@ -97,6 +98,7 @@ export function useVoiceController(options: VoiceControllerOptions = {}): VoiceC
     cbAnswer.current        = options.onAnswer;
     cbStateChange.current   = options.onStateChange;
     cbError.current         = options.onError;
+    cbCompose.current       = options.onCompose;
     sessionIdRef.current    = options.sessionId;
     emailContextRef.current = options.emailContext;
   });
@@ -212,6 +214,7 @@ export function useVoiceController(options: VoiceControllerOptions = {}): VoiceC
       const reader = res.body?.getReader();
       const decoder = new TextDecoder();
       let answer = '';
+      let composeData: Record<string, string> | null = null;
 
       if (reader) {
         let buf = '';
@@ -226,6 +229,17 @@ export function useVoiceController(options: VoiceControllerOptions = {}): VoiceC
             try {
               const ev = JSON.parse(line.slice(6));
               if (ev.type === 'token' && ev.text) answer += ev.text;
+              // Handle compose event — store data to trigger modal after speaking
+              if (ev.type === 'compose') {
+                composeData = {
+                  prompt: ev.prompt || '',
+                  recipientName: ev.recipientName || '',
+                  subject: ev.subject || '',
+                  body: ev.body || '',
+                  to: ev.to || '',
+                  cc: ev.cc || '',
+                };
+              }
             } catch { /* skip */ }
           }
         }
@@ -241,6 +255,11 @@ export function useVoiceController(options: VoiceControllerOptions = {}): VoiceC
       setVoiceState('speaking');
       await speak(cleanForSpeech(answer));
       if (!activeRef.current) return;
+
+      // After speaking, trigger compose modal if we got compose data
+      if (composeData) {
+        cbCompose.current?.(composeData);
+      }
 
       startListening();
     } catch (err) {

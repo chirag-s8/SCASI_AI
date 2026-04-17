@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 
@@ -6,15 +6,18 @@ import { useState, useCallback, useRef, useEffect, useMemo } from "react";
  * ComposeWithAI
  *
  * Props:
- *  - emails:   array of email objects from the inbox (used to find contacts)
- *  - onClose:  () => void
- *  - session:  NextAuth session (provides sender name for sign-off)
+ *  - emails:      array of email objects from the inbox (used to find contacts)
+ *  - onClose:     () => void
+ *  - session:     NextAuth session (provides sender name for sign-off)
+ *  - prefillData: optional pre-filled data from voice/chat assistant
+ *                 { prompt, recipientName, subject, body, to, cc }
  */
-export default function ComposeWithAI({ emails = [], onClose, session }) {
+export default function ComposeWithAI({ emails = [], onClose, session, prefillData = null }) {
     // Stages: "prompt" | "picking" | "editing" | "sent"
-    const [stage, setStage] = useState("prompt");
+    // If prefillData has a body, skip straight to editing stage
+    const [stage, setStage] = useState(prefillData?.body ? "editing" : "prompt");
 
-    const [prompt, setPrompt] = useState("");
+    const [prompt, setPrompt] = useState(prefillData?.prompt || "");
     const [loadingDraft, setLoadingDraft] = useState(false);
     const [error, setError] = useState("");
 
@@ -27,13 +30,13 @@ export default function ComposeWithAI({ emails = [], onClose, session }) {
     const [recipientName, setRecipientName] = useState("");
 
     // Draft fields — all editable
-    const [to, setTo] = useState("");
-    const [cc, setCc] = useState("");
+    const [to, setTo] = useState(prefillData?.to || "");
+    const [cc, setCc] = useState(prefillData?.cc || "");
     const [bcc, setBcc] = useState("");
-    const [showCc, setShowCc] = useState(false);
+    const [showCc, setShowCc] = useState(!!(prefillData?.cc));
     const [showBcc, setShowBcc] = useState(false);
-    const [subject, setSubject] = useState("");
-    const [body, setBody] = useState("");
+    const [subject, setSubject] = useState(prefillData?.subject || "");
+    const [body, setBody] = useState(prefillData?.body || "");
     // Attachments: [{ filename, mimeType, data (base64 string) }]
     const [attachments, setAttachments] = useState([]);
     const fileInputRef = useRef(null);

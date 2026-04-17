@@ -13,6 +13,7 @@ export const WorkflowType = z.enum([
     'handle_for_me',
     'sort_inbox',
     'reply_to',
+    'send_email',
     'general',
 ]);
 export type WorkflowType = z.infer<typeof WorkflowType>;
@@ -117,9 +118,20 @@ export interface ChatEventError {
     message: string;
 }
 
+export interface ChatEventCompose {
+    type: 'compose';
+    prompt: string;
+    recipientName?: string;
+    subject?: string;
+    body?: string;
+    to?: string;
+    cc?: string;
+}
+
 export type ChatStreamEvent =
     | ChatEventIntent
     | ChatEventStep
     | ChatEventToken
     | ChatEventDone
-    | ChatEventError;
+    | ChatEventError
+    | ChatEventCompose;
