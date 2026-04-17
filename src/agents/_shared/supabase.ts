@@ -22,9 +22,9 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
 function requireEnv(name: string): string {
     const value = process.env[name];
-    if (!value) {
+    if (!value || value.startsWith('your_')) {
         throw new Error(
-            `[agents/_shared/supabase] Missing required environment variable: ${name}. ` +
+            `[agents/_shared/supabase] Missing or unconfigured environment variable: ${name}. ` +
             `Add it to .env.local.`
         );
     }
