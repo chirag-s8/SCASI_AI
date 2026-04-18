@@ -1791,15 +1791,8 @@ export default function Home() {
                <AnalyticsDashboard />
              </div>
           ) : (
-            <>
-          {/* â•â•â•â• EMAIL LIST â•â•â•â• */}
-          <div style={{
-            display: selectedMail ? "none" : "flex", flexGrow: 1, flexShrink: 0, flexBasis: "auto",
-            borderRight: "1px solid #EDE9FE",
-            flexDirection: "column",
-            background: "#fff", overflow: "hidden",
-          }}>
 
+            <div style={{ display: "flex", flexDirection: "column", flexGrow: 1, overflow: "hidden" }}>
             {/* â”€â”€ ELITE TRIAGE BANNER â”€â”€ */}
 
               <div style={{ 
@@ -1989,6 +1982,202 @@ export default function Home() {
               </div>
 
 
+          <div style={{
+            display: selectedMail ? "none" : "flex", flexGrow: 1, flexShrink: 0, flexBasis: "auto",
+            borderRight: "1px solid #EDE9FE",
+            flexDirection: "column",
+            background: "#fff", overflow: "hidden",
+          }}>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
             {/* list header */}
             <div style={{ padding: "16px 24px", borderBottom: "1px solid #E2E8F0", background: "#F8FAFC" }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
@@ -2092,7 +2281,7 @@ export default function Home() {
                             <span className="pill" style={{ background: "transparent", color: tone.color, fontWeight: 600, border: `1px solid ${tone.color}40`, padding: "4px 8px", fontSize: 10 }}>
                               {tone.icon} {tone.label}
                             </span>
-                          </>
+            </div>
                         )}
                         {isNew && <span style={{ fontSize: 9, color: "#1D4ED8", background: "#EFF6FF", padding: "3px 6px", borderRadius: 4, fontWeight: 800, border: "none", letterSpacing: "0.04em" }}>NEW</span>}
                     </div>
