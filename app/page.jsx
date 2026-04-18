@@ -1871,6 +1871,7 @@ export default function Home() {
                            : "Generating your executive briefingâ€¦"}
                          </span>
                        </div>
+                     )}
 
 
                      {/* Inbox Zero */}
