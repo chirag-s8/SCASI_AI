@@ -29,8 +29,8 @@ import { MODELS } from './registry';
 export const taskPolicies: Record<LLMTaskType, TaskModelPolicy> = {
     route: {
         task: 'route',
-        primary: MODELS.GROQ_LLAMA_3_1_8B,
-        fallbackChain: [MODELS.GROQ_LLAMA_3_3_70B, MODELS.OR_NEMOTRON_30B, MODELS.OR_HUNTER_ALPHA],
+        primary: MODELS.SARVAM_2B,
+        fallbackChain: [MODELS.GROQ_LLAMA_3_1_8B, MODELS.OR_NEMOTRON_30B, MODELS.OR_HUNTER_ALPHA],
     },
     classify: {
         task: 'classify',
@@ -49,8 +49,8 @@ export const taskPolicies: Record<LLMTaskType, TaskModelPolicy> = {
     },
     reply: {
         task: 'reply',
-        primary: MODELS.GROQ_LLAMA_3_3_70B,
-        fallbackChain: [MODELS.GROQ_LLAMA_3_1_8B, MODELS.OR_GPT_OSS_120B, MODELS.OR_HUNTER_ALPHA],
+        primary: MODELS.SARVAM_M,
+        fallbackChain: [MODELS.GROQ_LLAMA_3_3_70B, MODELS.GROQ_LLAMA_3_1_8B, MODELS.OR_GPT_OSS_120B, MODELS.OR_HUNTER_ALPHA],
     },
     rerank: {
         task: 'rerank',
