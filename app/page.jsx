@@ -1801,7 +1801,7 @@ export default function Home() {
           }}>
 
             {/* â”€â”€ ELITE TRIAGE BANNER â”€â”€ */}
-            {activeFolder === "inbox" && (
+
               <div style={{ 
                 position: "relative", padding: "26px 30px", overflow: "hidden",
                 background: "linear-gradient(135deg, #0F172A 0%, #1E1B4B 100%)",
@@ -1871,7 +1871,7 @@ export default function Home() {
                            : "Generating your executive briefingâ€¦"}
                          </span>
                        </div>
-                     )}
+
 
                      {/* Inbox Zero */}
                      {triageResultBody === "inbox_zero" && (
